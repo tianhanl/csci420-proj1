@@ -16,68 +16,123 @@
 #include "basicPipelineProgram.h"
 
 #ifdef WIN32
-  #ifdef _DEBUG
-    #pragma comment(lib, "glew32d.lib")
-  #else
-    #pragma comment(lib, "glew32.lib")
-  #endif
+#ifdef _DEBUG
+#pragma comment(lib, "glew32d.lib")
+#else
+#pragma comment(lib, "glew32.lib")
+#endif
 #endif
 
 #ifdef WIN32
-  char shaderBasePath[1024] = SHADER_BASE_PATH;
+char shaderBasePath[1024] = SHADER_BASE_PATH;
 #else
-  char shaderBasePath[1024] = "../openGLHelper-starterCode";
+char shaderBasePath[1024] = "../openGLHelper-starterCode";
 #endif
 
 using namespace std;
 
 int mousePos[2]; // x,y coordinate of the mouse position
 
-int leftMouseButton = 0; // 1 if pressed, 0 if not 
+int leftMouseButton = 0;   // 1 if pressed, 0 if not
 int middleMouseButton = 0; // 1 if pressed, 0 if not
-int rightMouseButton = 0; // 1 if pressed, 0 if not
+int rightMouseButton = 0;  // 1 if pressed, 0 if not
 
-typedef enum { ROTATE, TRANSLATE, SCALE } CONTROL_STATE;
+typedef enum { ROTATE,
+               TRANSLATE,
+               SCALE } CONTROL_STATE;
 CONTROL_STATE controlState = ROTATE;
 
 // state of the world
-float landRotate[3] = { 0.0f, 0.0f, 0.0f };
-float landTranslate[3] = { 0.0f, 0.0f, 0.0f };
-float landScale[3] = { 1.0f, 1.0f, 1.0f };
+float landRotate[3] = {0.0f, 0.0f, 0.0f};
+float landTranslate[3] = {0.0f, 0.0f, 0.0f};
+float landScale[3] = {1.0f, 1.0f, 1.0f};
 
 int windowWidth = 1280;
 int windowHeight = 720;
 char windowTitle[512] = "CSCI 420 homework I";
 
-ImageIO * heightmapImage;
+ImageIO *heightmapImage;
+
+// properties for OpenGL
+GLuint buffer;
+
+OpenGLMatrix *matrix;
+
+GLfloat theta[3] = {0.0, 0.0, 0.0};
+
+BasicPipelineProgram *pipelineProgram;
+
+// temporary vertexes for a triangle
+float positions[3][3] = {{-1.0, 0.0, -1.0}, {0.0, 1.0, -1.0}, {1.0, 1.0, -1.0}};
+
+float colors[3][4] = {{1.0, 0.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 1.0}, {0.0, 0.0, 1.0, 1.0}};
 
 // write a screenshot to the specified filename
-void saveScreenshot(const char * filename)
+void saveScreenshot(const char *filename)
 {
-  unsigned char * screenshotData = new unsigned char[windowWidth * windowHeight * 3];
+  unsigned char *screenshotData = new unsigned char[windowWidth * windowHeight * 3];
   glReadPixels(0, 0, windowWidth, windowHeight, GL_RGB, GL_UNSIGNED_BYTE, screenshotData);
 
   ImageIO screenshotImg(windowWidth, windowHeight, 3, screenshotData);
 
   if (screenshotImg.save(filename, ImageIO::FORMAT_JPEG) == ImageIO::OK)
     cout << "File " << filename << " saved successfully." << endl;
-  else cout << "Failed to save file " << filename << '.' << endl;
+  else
+    cout << "Failed to save file " << filename << '.' << endl;
 
-  delete [] screenshotData;
+  delete[] screenshotData;
+}
+
+void bindProgram()
+{
+  // bind buffer, so that glVertexAttribPointer refers to the corerect buffer
+
+  glBindBuffer(GL_ARRAY_BUFFER, buffer);
+  GLuint loc = glGetAttribLocation(program, "position");
+  glEnableVertexAtrribArray(loc);
+  const void *offset = (const void *)0;
+  glVertexAttribPointer(loc, 3, GL_FLOAT, GL_FALSE, 0, offset);
+
+  GLuint loc2 = glGetAttribLocation(program, "color");
+  glEnableVertexAttribArray(loc2);
+  offset = (const void *)sizeof(positions);
+  glVertexAttribPointer(loc2, 4, GL_FLOAT, GL_FALSE, 0, offset);
+
+  // write projection and modelview matrix to shader
+}
+
+void renderTriangle()
+{
+  GLint first = 0;
+  GLsizei numberOfVertices = 3;
+  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
 }
 
 void displayFunc()
 {
   // render some stuff...
+  // the steps to display is to
+  // clear -> action -> draw -> swap (buffer)
+  glClear(GL_COLOR_BUFFER_BIT |
+          GL_DEPTH_BUFFER_BIT);
+  matrix->LoadIdentity();
+  matrix->LookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
+  matrix->Rotate(theta[0], 1.0, 0.0, 0.0);
+  matrix->Rotate(theta[1], 0.0, 1.0, 0.0);
+  matrix->Rotate(theta[2], 0.0, 0.0, 1.0);
+
+  bindProgram();
+  renderTriangle();
+  glutSwapBuffers();
 }
 
 void idleFunc()
 {
-  // do some stuff... 
+  // do some stuff...
 
   // for example, here, you can save the screenshots to disk (to make the animation)
 
-  // make the screen update 
+  // make the screen update
   glutPostRedisplay();
 }
 
@@ -86,6 +141,12 @@ void reshapeFunc(int w, int h)
   glViewport(0, 0, w, h);
 
   // setup perspective matrix...
+  GLfloat aspect = (GLfloat)w / (GLfloat)h;
+  glViewport(0, 0, w, h);
+  matrix->SetMatrixMode(OpenGLMatrix::Projection);
+  matrix->LoadIdentity();
+  matrix->Ortho(-2.0, 2.0, -2.0 / aspect, 2.0 / aspect, 0.0, 10.0);
+  matrix->SetMatrixMode(OpenGLMatrix::ModelView);
 }
 
 void mouseMotionDragFunc(int x, int y)
@@ -93,54 +154,54 @@ void mouseMotionDragFunc(int x, int y)
   // mouse has moved and one of the mouse buttons is pressed (dragging)
 
   // the change in mouse position since the last invocation of this function
-  int mousePosDelta[2] = { x - mousePos[0], y - mousePos[1] };
+  int mousePosDelta[2] = {x - mousePos[0], y - mousePos[1]};
 
   switch (controlState)
   {
-    // translate the landscape
-    case TRANSLATE:
-      if (leftMouseButton)
-      {
-        // control x,y translation via the left mouse button
-        landTranslate[0] += mousePosDelta[0] * 0.01f;
-        landTranslate[1] -= mousePosDelta[1] * 0.01f;
-      }
-      if (middleMouseButton)
-      {
-        // control z translation via the middle mouse button
-        landTranslate[2] += mousePosDelta[1] * 0.01f;
-      }
-      break;
+  // translate the landscape
+  case TRANSLATE:
+    if (leftMouseButton)
+    {
+      // control x,y translation via the left mouse button
+      landTranslate[0] += mousePosDelta[0] * 0.01f;
+      landTranslate[1] -= mousePosDelta[1] * 0.01f;
+    }
+    if (middleMouseButton)
+    {
+      // control z translation via the middle mouse button
+      landTranslate[2] += mousePosDelta[1] * 0.01f;
+    }
+    break;
 
-    // rotate the landscape
-    case ROTATE:
-      if (leftMouseButton)
-      {
-        // control x,y rotation via the left mouse button
-        landRotate[0] += mousePosDelta[1];
-        landRotate[1] += mousePosDelta[0];
-      }
-      if (middleMouseButton)
-      {
-        // control z rotation via the middle mouse button
-        landRotate[2] += mousePosDelta[1];
-      }
-      break;
+  // rotate the landscape
+  case ROTATE:
+    if (leftMouseButton)
+    {
+      // control x,y rotation via the left mouse button
+      landRotate[0] += mousePosDelta[1];
+      landRotate[1] += mousePosDelta[0];
+    }
+    if (middleMouseButton)
+    {
+      // control z rotation via the middle mouse button
+      landRotate[2] += mousePosDelta[1];
+    }
+    break;
 
-    // scale the landscape
-    case SCALE:
-      if (leftMouseButton)
-      {
-        // control x,y scaling via the left mouse button
-        landScale[0] *= 1.0f + mousePosDelta[0] * 0.01f;
-        landScale[1] *= 1.0f - mousePosDelta[1] * 0.01f;
-      }
-      if (middleMouseButton)
-      {
-        // control z scaling via the middle mouse button
-        landScale[2] *= 1.0f - mousePosDelta[1] * 0.01f;
-      }
-      break;
+  // scale the landscape
+  case SCALE:
+    if (leftMouseButton)
+    {
+      // control x,y scaling via the left mouse button
+      landScale[0] *= 1.0f + mousePosDelta[0] * 0.01f;
+      landScale[1] *= 1.0f - mousePosDelta[1] * 0.01f;
+    }
+    if (middleMouseButton)
+    {
+      // control z scaling via the middle mouse button
+      landScale[2] *= 1.0f - mousePosDelta[1] * 0.01f;
+    }
+    break;
   }
 
   // store the new mouse position
@@ -163,33 +224,33 @@ void mouseButtonFunc(int button, int state, int x, int y)
   // keep track of the mouse button state, in leftMouseButton, middleMouseButton, rightMouseButton variables
   switch (button)
   {
-    case GLUT_LEFT_BUTTON:
-      leftMouseButton = (state == GLUT_DOWN);
+  case GLUT_LEFT_BUTTON:
+    leftMouseButton = (state == GLUT_DOWN);
     break;
 
-    case GLUT_MIDDLE_BUTTON:
-      middleMouseButton = (state == GLUT_DOWN);
+  case GLUT_MIDDLE_BUTTON:
+    middleMouseButton = (state == GLUT_DOWN);
     break;
 
-    case GLUT_RIGHT_BUTTON:
-      rightMouseButton = (state == GLUT_DOWN);
+  case GLUT_RIGHT_BUTTON:
+    rightMouseButton = (state == GLUT_DOWN);
     break;
   }
 
   // keep track of whether CTRL and SHIFT keys are pressed
   switch (glutGetModifiers())
   {
-    case GLUT_ACTIVE_CTRL:
-      controlState = TRANSLATE;
+  case GLUT_ACTIVE_CTRL:
+    controlState = TRANSLATE;
     break;
 
-    case GLUT_ACTIVE_SHIFT:
-      controlState = SCALE;
+  case GLUT_ACTIVE_SHIFT:
+    controlState = SCALE;
     break;
 
-    // if CTRL and SHIFT are not pressed, we are in rotate mode
-    default:
-      controlState = ROTATE;
+  // if CTRL and SHIFT are not pressed, we are in rotate mode
+  default:
+    controlState = ROTATE;
     break;
   }
 
@@ -202,19 +263,42 @@ void keyboardFunc(unsigned char key, int x, int y)
 {
   switch (key)
   {
-    case 27: // ESC key
-      exit(0); // exit the program
+  case 27:   // ESC key
+    exit(0); // exit the program
     break;
 
-    case ' ':
-      cout << "You pressed the spacebar." << endl;
+  case ' ':
+    cout << "You pressed the spacebar." << endl;
     break;
 
-    case 'x':
-      // take a screenshot
-      saveScreenshot("screenshot.jpg");
+  case 'x':
+    // take a screenshot
+    saveScreenshot("screenshot.jpg");
     break;
   }
+}
+
+// initialization for the vertex buffer object
+void initVBO()
+{
+  glGenBuffers(1, &buffer);
+  glBindBuffer(GL_ARRAY_BUFFER, buffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(positions) + sizeof(colors), NULL, GL_STATIC_DRAW);
+
+  // upload position data
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(positions), positions);
+
+  // upload color data
+  glBufferSubData(GL_ARRAY_BUFFER, sizeof(positions), sizeof(colors), colors);
+}
+
+// initialization for the pipeline (shaders, etc.)
+void initPipelineProgram()
+{
+  // initialize shader pipeline program
+  pipelineProgram = new BasicPipelineProgram();
+  pipelineProgram->Init("../openGLHelper-starterCode");
+  pipelineProgram->Bind();
 }
 
 void initScene(int argc, char *argv[])
@@ -228,8 +312,11 @@ void initScene(int argc, char *argv[])
   }
 
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
   // do additional initialization here...
+  glEnable(GL_DEPTH_TEST);
+  matrix = new OpenGLMatrix();
+  initVBO();
+  initPipelineProgram();
 }
 
 int main(int argc, char *argv[])
@@ -242,25 +329,25 @@ int main(int argc, char *argv[])
   }
 
   cout << "Initializing GLUT..." << endl;
-  glutInit(&argc,argv);
+  glutInit(&argc, argv);
 
   cout << "Initializing OpenGL..." << endl;
 
-  #ifdef __APPLE__
-    glutInitDisplayMode(GLUT_3_2_CORE_PROFILE | GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_STENCIL);
-  #else
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_STENCIL);
-  #endif
+#ifdef __APPLE__
+  glutInitDisplayMode(GLUT_3_2_CORE_PROFILE | GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_STENCIL);
+#else
+  glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_STENCIL);
+#endif
 
   glutInitWindowSize(windowWidth, windowHeight);
-  glutInitWindowPosition(0, 0);  
+  glutInitWindowPosition(0, 0);
   glutCreateWindow(windowTitle);
 
   cout << "OpenGL Version: " << glGetString(GL_VERSION) << endl;
   cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << endl;
   cout << "Shading Language Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << endl;
 
-  // tells glut to use a particular display function to redraw 
+  // tells glut to use a particular display function to redraw
   glutDisplayFunc(displayFunc);
   // perform animation inside idleFunc
   glutIdleFunc(idleFunc);
@@ -275,18 +362,18 @@ int main(int argc, char *argv[])
   // callback for pressing the keys on the keyboard
   glutKeyboardFunc(keyboardFunc);
 
-  // init glew
-  #ifdef __APPLE__
-    // nothing is needed on Apple
-  #else
-    // Windows, Linux
-    GLint result = glewInit();
-    if (result != GLEW_OK)
-    {
-      cout << "error: " << glewGetErrorString(result) << endl;
-      exit(EXIT_FAILURE);
-    }
-  #endif
+// init glew
+#ifdef __APPLE__
+  // nothing is needed on Apple
+#else
+  // Windows, Linux
+  GLint result = glewInit();
+  if (result != GLEW_OK)
+  {
+    cout << "error: " << glewGetErrorString(result) << endl;
+    exit(EXIT_FAILURE);
+  }
+#endif
 
   // do initialization
   initScene(argc, argv);
@@ -294,5 +381,3 @@ int main(int argc, char *argv[])
   // sink forever into the glut loop
   glutMainLoop();
 }
-
-
