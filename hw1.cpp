@@ -55,6 +55,7 @@ ImageIO *heightmapImage;
 
 // properties for OpenGL
 GLuint buffer;
+GLuint vao;
 
 OpenGLMatrix *matrix;
 
@@ -63,7 +64,7 @@ GLfloat theta[3] = {0.0, 0.0, 0.0};
 BasicPipelineProgram *pipelineProgram;
 
 // temporary vertexes for a triangle
-float positions[3][3] = {{-1.0, 0.0, -1.0}, {0.0, 1.0, -1.0}, {1.0, 1.0, -1.0}};
+float positions[3][3] = {{-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0}, {1.0, 1.0, -1.0}};
 
 float colors[3][4] = {{1.0, 0.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 1.0}, {0.0, 0.0, 1.0, 1.0}};
 
@@ -86,19 +87,24 @@ void saveScreenshot(const char *filename)
 void bindProgram()
 {
   // bind buffer, so that glVertexAttribPointer refers to the corerect buffer
+  // get a handle to the program
+  GLuint program = pipelineProgram->GetProgramHandle();
+  GLint h_modelViewMatrix = glGetUniformLocation(program, "modelViewMatrix");
+  GLint h_projectionMatrix =
+      glGetUniformLocation(program, "projectionMatrix");
+  const GLboolean isRowMajor = false;
 
-  glBindBuffer(GL_ARRAY_BUFFER, buffer);
-  GLuint loc = glGetAttribLocation(program, "position");
-  glEnableVertexAtrribArray(loc);
-  const void *offset = (const void *)0;
-  glVertexAttribPointer(loc, 3, GL_FLOAT, GL_FALSE, 0, offset);
+  float m[16];
+  matrix->GetMatrix(m);
+  glUniformMatrix4fv(h_modelViewMatrix, 1, isRowMajor, m);
 
-  GLuint loc2 = glGetAttribLocation(program, "color");
-  glEnableVertexAttribArray(loc2);
-  offset = (const void *)sizeof(positions);
-  glVertexAttribPointer(loc2, 4, GL_FLOAT, GL_FALSE, 0, offset);
+  matrix->SetMatrixMode(OpenGLMatrix::Projection);
+  float p[16]; // column-major
+  matrix->GetMatrix(p);
+  glUniformMatrix4fv(h_projectionMatrix, 1, isRowMajor, p);
 
-  // write projection and modelview matrix to shader
+  pipelineProgram->Bind();
+  glBindVertexArray(vao);
 }
 
 void renderTriangle()
@@ -106,6 +112,7 @@ void renderTriangle()
   GLint first = 0;
   GLsizei numberOfVertices = 3;
   glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
+  glBindVertexArray(0);
 }
 
 void displayFunc()
@@ -115,11 +122,12 @@ void displayFunc()
   // clear -> action -> draw -> swap (buffer)
   glClear(GL_COLOR_BUFFER_BIT |
           GL_DEPTH_BUFFER_BIT);
+  matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
   matrix->LookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
-  matrix->Rotate(theta[0], 1.0, 0.0, 0.0);
-  matrix->Rotate(theta[1], 0.0, 1.0, 0.0);
-  matrix->Rotate(theta[2], 0.0, 0.0, 1.0);
+  // matrix->Rotate(theta[0], 1.0, 0.0, 0.0);
+  // matrix->Rotate(theta[1], 0.0, 1.0, 0.0);
+  // matrix->Rotate(theta[2], 0.0, 0.0, 1.0);
 
   bindProgram();
   renderTriangle();
@@ -284,12 +292,13 @@ void initVBO()
   glGenBuffers(1, &buffer);
   glBindBuffer(GL_ARRAY_BUFFER, buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(positions) + sizeof(colors), NULL, GL_STATIC_DRAW);
-
+  cout << "buffered binded" << endl;
   // upload position data
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(positions), positions);
-
+  cout << "uploaded position data" << endl;
   // upload color data
   glBufferSubData(GL_ARRAY_BUFFER, sizeof(positions), sizeof(colors), colors);
+  cout << "uploaded color data" << endl;
 }
 
 // initialization for the pipeline (shaders, etc.)
@@ -299,6 +308,29 @@ void initPipelineProgram()
   pipelineProgram = new BasicPipelineProgram();
   pipelineProgram->Init("../openGLHelper-starterCode");
   pipelineProgram->Bind();
+}
+
+void initVAO()
+{
+  GLuint program = pipelineProgram->GetProgramHandle();
+  glGenVertexArrays(1, &vao);
+  glBindVertexArray(vao);
+  GLsizei stride = 0;
+  GLboolean normalized = GL_FALSE;
+
+  glBindBuffer(GL_ARRAY_BUFFER, buffer);
+  GLuint loc = glGetAttribLocation(program, "position");
+  glEnableVertexAttribArray(loc);
+  const void *offset = (const void *)0;
+  glVertexAttribPointer(loc, 3, GL_FLOAT, normalized, stride, offset);
+
+  GLuint loc2 = glGetAttribLocation(program, "color");
+  glEnableVertexAttribArray(loc2);
+  offset = (const void *)sizeof(positions);
+  glVertexAttribPointer(loc2, 4, GL_FLOAT, normalized, stride, offset);
+
+  // write projection and modelview matrix to shader
+  glBindVertexArray(0);
 }
 
 void initScene(int argc, char *argv[])
@@ -312,11 +344,14 @@ void initScene(int argc, char *argv[])
   }
 
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  cout << "inital color cleared" << endl;
   // do additional initialization here...
   glEnable(GL_DEPTH_TEST);
   matrix = new OpenGLMatrix();
+  cout << "matrix created" << endl;
   initVBO();
   initPipelineProgram();
+  initVAO();
 }
 
 int main(int argc, char *argv[])
