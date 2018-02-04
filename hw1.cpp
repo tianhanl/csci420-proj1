@@ -150,10 +150,11 @@ void reshapeFunc(int w, int h)
 
   // setup perspective matrix...
   GLfloat aspect = (GLfloat)w / (GLfloat)h;
-  glViewport(0, 0, w, h);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
   matrix->LoadIdentity();
-  matrix->Ortho(-2.0, 2.0, -2.0 / aspect, 2.0 / aspect, 0.0, 10.0);
+  // The camera must be pointing in the negative-z direction, and use
+  // the perspective view: aspect ratio=1280:720, field of view = 45 degrees.
+  matrix->Perspective(45, (1.0 * 1280) / (1.0 * 720), 0.01, 5.0);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
 }
 
