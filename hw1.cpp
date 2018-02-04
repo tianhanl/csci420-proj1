@@ -64,7 +64,7 @@ GLfloat theta[3] = {0.0, 0.0, 0.0};
 BasicPipelineProgram *pipelineProgram;
 
 // temporary vertexes for a triangle
-float positions[3][3] = {{-1.0, -1.0, -1.0}, {1.0, -1.0, -1.0}, {1.0, 1.0, -1.0}};
+float positions[3][3] = {{0.0, 0.0, -1.0}, {1.0, 0.0, -1.0}, {0.0, 1.0, -1.0}};
 
 float colors[3][4] = {{1.0, 0.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 1.0}, {0.0, 0.0, 1.0, 1.0}};
 
@@ -124,7 +124,7 @@ void displayFunc()
           GL_DEPTH_BUFFER_BIT);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  matrix->LookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
+  matrix->LookAt(0, 0, 3.690276557, 0, 0, -1, 0, 1, 0);
   // matrix->Rotate(theta[0], 1.0, 0.0, 0.0);
   // matrix->Rotate(theta[1], 0.0, 1.0, 0.0);
   // matrix->Rotate(theta[2], 0.0, 0.0, 1.0);
