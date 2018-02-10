@@ -3,7 +3,7 @@
   Assignment 1: Height Fields
   C++ starter code
 
-  Student username: <type your USC username here>
+  Student username: Tianhang Liu
 */
 
 #include <iostream>
@@ -14,6 +14,7 @@
 #include "imageIO.h"
 #include "openGLMatrix.h"
 #include "basicPipelineProgram.h"
+#include "vector"
 
 #ifdef WIN32
 #ifdef _DEBUG
@@ -64,9 +65,14 @@ GLfloat theta[3] = {0.0, 0.0, 0.0};
 BasicPipelineProgram *pipelineProgram;
 
 // temporary vertexes for a triangle
-float positions[3][3] = {{0.0, 0.0, -1.0}, {1.0, 0.0, -1.0}, {0.0, 1.0, -1.0}};
+// float positions[3][3] = {{0.0, 0.0, -1.0}, {1.0, 0.0, -1.0}, {0.0, 1.0, -1.0}};
 
-float colors[3][4] = {{1.0, 0.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 1.0}, {0.0, 0.0, 1.0, 1.0}};
+// float colors[3][4] = {{1.0, 0.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 1.0}, {0.0, 0.0, 1.0, 1.0}};
+vector<float> positions;
+vector<float> colors;
+
+int sizePositions = 0;
+int sizeColors = 0;
 
 // write a screenshot to the specified filename
 void saveScreenshot(const char *filename)
@@ -94,11 +100,14 @@ void bindProgram()
       glGetUniformLocation(program, "projectionMatrix");
   const GLboolean isRowMajor = false;
 
+  // sent viewmodel matrix
   float m[16];
   matrix->GetMatrix(m);
   glUniformMatrix4fv(h_modelViewMatrix, 1, isRowMajor, m);
 
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
+
+  // sent projection matrix
   float p[16]; // column-major
   matrix->GetMatrix(p);
   glUniformMatrix4fv(h_projectionMatrix, 1, isRowMajor, p);
@@ -110,9 +119,9 @@ void bindProgram()
 void renderTriangle()
 {
   GLint first = 0;
-  GLsizei numberOfVertices = 3;
-  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
+  GLsizei numberOfVertices = positions.size() / 3;
   glBindVertexArray(0);
+  glDrawArrays(GL_POINTS, first, numberOfVertices);
 }
 
 void displayFunc()
@@ -124,11 +133,11 @@ void displayFunc()
           GL_DEPTH_BUFFER_BIT);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  matrix->LookAt(0, 0, 3.690276557, 0, 0, -1, 0, 1, 0);
+  matrix->LookAt(0, 1000, 0, 0, 0, -1, 0, 0, 1);
   // matrix->Rotate(theta[0], 1.0, 0.0, 0.0);
   // matrix->Rotate(theta[1], 0.0, 1.0, 0.0);
   // matrix->Rotate(theta[2], 0.0, 0.0, 1.0);
-
+  // matrix->Scale(landScale[0], landScale[1], landScale[2]);
   bindProgram();
   renderTriangle();
   glutSwapBuffers();
@@ -210,6 +219,10 @@ void mouseMotionDragFunc(int x, int y)
       // control z scaling via the middle mouse button
       landScale[2] *= 1.0f - mousePosDelta[1] * 0.01f;
     }
+    cout << landScale[0] << endl;
+    cout << landScale[1] << endl;
+    cout << landScale[2] << endl;
+
     break;
   }
 
@@ -272,7 +285,8 @@ void keyboardFunc(unsigned char key, int x, int y)
 {
   switch (key)
   {
-  case 27:   // ESC key
+  case 27: // ESC key
+
     exit(0); // exit the program
     break;
 
@@ -292,14 +306,11 @@ void initVBO()
 {
   glGenBuffers(1, &buffer);
   glBindBuffer(GL_ARRAY_BUFFER, buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(positions) + sizeof(colors), NULL, GL_STATIC_DRAW);
-  cout << "buffered binded" << endl;
+  glBufferData(GL_ARRAY_BUFFER, positions.size() * sizeof(float) + colors.size() * sizeof(float), NULL, GL_STATIC_DRAW);
   // upload position data
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(positions), positions);
-  cout << "uploaded position data" << endl;
+  glBufferSubData(GL_ARRAY_BUFFER, 0, positions.size() * sizeof(float), positions.data());
   // upload color data
-  glBufferSubData(GL_ARRAY_BUFFER, sizeof(positions), sizeof(colors), colors);
-  cout << "uploaded color data" << endl;
+  glBufferSubData(GL_ARRAY_BUFFER, positions.size() * sizeof(float), colors.size() * sizeof(float), colors.data());
 }
 
 // initialization for the pipeline (shaders, etc.)
@@ -327,7 +338,7 @@ void initVAO()
 
   GLuint loc2 = glGetAttribLocation(program, "color");
   glEnableVertexAttribArray(loc2);
-  offset = (const void *)sizeof(positions);
+  offset = (const void *)(positions.size() * sizeof(float));
   glVertexAttribPointer(loc2, 4, GL_FLOAT, normalized, stride, offset);
 
   // write projection and modelview matrix to shader
@@ -344,12 +355,40 @@ void initScene(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
+  // reading positions and colors from images
+
+  // declare memory
+  int width = heightmapImage->getWidth();
+  int height = heightmapImage->getHeight();
+
+  // fill the points
+  for (int i = 0; i < width; i++)
+  {
+    for (int j = 0; j < height; j++)
+    {
+      positions.push_back((float)i);
+      positions.push_back((float)(landScale[1] * heightmapImage->getPixel(i, j, 0)));
+      positions.push_back((float)j);
+    }
+  }
+  for (int i = 0; i < width; i++)
+  {
+    int offsetPos = i * height * 4;
+    for (int j = 0; j < height; j++)
+    {
+      colors.push_back(1.0);
+      colors.push_back(0.0);
+      colors.push_back(0.0);
+      colors.push_back(1.0);
+    }
+  }
+
+  cout << positions[0] << positions[1] << positions[2] << endl;
+
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-  cout << "inital color cleared" << endl;
   // do additional initialization here...
   glEnable(GL_DEPTH_TEST);
   matrix = new OpenGLMatrix();
-  cout << "matrix created" << endl;
   initVBO();
   initPipelineProgram();
   initVAO();
