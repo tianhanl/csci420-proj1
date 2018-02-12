@@ -293,10 +293,12 @@ void initVBO()
   glGenBuffers(1, &buffer);
   glBindBuffer(GL_ARRAY_BUFFER, buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(positions) + sizeof(colors), NULL, GL_STATIC_DRAW);
+  cout << sizeof(positions) + sizeof(colors) << endl;
   cout << "buffered binded" << endl;
   // upload position data
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(positions), positions);
   cout << "uploaded position data" << endl;
+  cout << sizeof(positions) << endl;
   // upload color data
   glBufferSubData(GL_ARRAY_BUFFER, sizeof(positions), sizeof(colors), colors);
   cout << "uploaded color data" << endl;
