@@ -111,7 +111,7 @@ void renderTriangle()
 {
   GLint first = 0;
   GLsizei numberOfVertices = 3;
-  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
+  glDrawArrays(GL_POINTS, first, numberOfVertices);
   glBindVertexArray(0);
 }
 
