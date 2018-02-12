@@ -133,7 +133,7 @@ void displayFunc()
           GL_DEPTH_BUFFER_BIT);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  matrix->LookAt(0, 1000, 0, 0, 0, -1, 0, 0, 1);
+  matrix->LookAt(0, 0, 3, 0, 0, -1, 0, 1, 0);
   // matrix->Rotate(theta[0], 1.0, 0.0, 0.0);
   // matrix->Rotate(theta[1], 0.0, 1.0, 0.0);
   // matrix->Rotate(theta[2], 0.0, 0.0, 1.0);
@@ -163,7 +163,7 @@ void reshapeFunc(int w, int h)
   matrix->LoadIdentity();
   // The camera must be pointing in the negative-z direction, and use
   // the perspective view: aspect ratio=1280:720, field of view = 45 degrees.
-  matrix->Perspective(45, (1.0 * 1280) / (1.0 * 720), 0.01, 5.0);
+  matrix->Perspective(60, (1.0 * 1280) / (1.0 * 720), 0.01, 5.0);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
 }
 
@@ -306,9 +306,13 @@ void initVBO()
 {
   glGenBuffers(1, &buffer);
   glBindBuffer(GL_ARRAY_BUFFER, buffer);
+  cout << "total size:" << positions.size() * sizeof(float) + colors.size() * sizeof(float) << endl;
   glBufferData(GL_ARRAY_BUFFER, positions.size() * sizeof(float) + colors.size() * sizeof(float), NULL, GL_STATIC_DRAW);
   // upload position data
+  cout << "position size:" << positions.size() * sizeof(float) << endl;
   glBufferSubData(GL_ARRAY_BUFFER, 0, positions.size() * sizeof(float), positions.data());
+
+  cout << "color size:" << colors.size() * sizeof(float) << endl;
   // upload color data
   glBufferSubData(GL_ARRAY_BUFFER, positions.size() * sizeof(float), colors.size() * sizeof(float), colors.data());
 }
@@ -361,29 +365,36 @@ void initScene(int argc, char *argv[])
   int width = heightmapImage->getWidth();
   int height = heightmapImage->getHeight();
 
-  // fill the points
-  for (int i = 0; i < width; i++)
-  {
-    for (int j = 0; j < height; j++)
-    {
-      positions.push_back((float)i);
-      positions.push_back((float)(landScale[1] * heightmapImage->getPixel(i, j, 0)));
-      positions.push_back((float)j);
-    }
-  }
-  for (int i = 0; i < width; i++)
-  {
-    int offsetPos = i * height * 4;
-    for (int j = 0; j < height; j++)
-    {
-      colors.push_back(1.0);
-      colors.push_back(0.0);
-      colors.push_back(0.0);
-      colors.push_back(1.0);
-    }
-  }
+  // // fill the points
+  // for (int i = 0; i < width; i++)
+  // {
+  //   for (int j = 0; j < height; j++)
+  //   {
+  //     positions.push_back((float)i);
+  //     positions.push_back((float)(landScale[1] * heightmapImage->getPixel(i, j, 0)));
+  //     positions.push_back((float)j);
+  //   }
+  // }
+  // for (int i = 0; i < width; i++)
+  // {
+  //   int offsetPos = i * height * 4;
+  //   for (int j = 0; j < height; j++)
+  //   {
+  //     colors.push_back(1.0);
+  //     colors.push_back(0.0);
+  //     colors.push_back(0.0);
+  //     colors.push_back(1.0);
+  //   }
+  // }
 
-  cout << positions[0] << positions[1] << positions[2] << endl;
+  positions.push_back(-1.0);
+  positions.push_back(-1.0);
+  positions.push_back(-1.0);
+
+  colors.push_back(0.0);
+  colors.push_back(0.0);
+  colors.push_back(0.0);
+  colors.push_back(0.0);
 
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   // do additional initialization here...
