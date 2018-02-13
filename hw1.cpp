@@ -113,7 +113,7 @@ void renderTriangle()
 {
   GLint first = 0;
   GLsizei numberOfVertices = sizePositions / 3;
-  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
+  glDrawArrays(GL_POINTS, first, numberOfVertices);
   glBindVertexArray(0);
 }
 
@@ -126,7 +126,7 @@ void displayFunc()
           GL_DEPTH_BUFFER_BIT);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  matrix->LookAt(0, 0, 3.690276557, 0, 0, -1, 0, 1, 0);
+  matrix->LookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
   // matrix->Rotate(theta[0], 1.0, 0.0, 0.0);
   // matrix->Rotate(theta[1], 0.0, 1.0, 0.0);
   // matrix->Rotate(theta[2], 0.0, 0.0, 1.0);
@@ -156,7 +156,7 @@ void reshapeFunc(int w, int h)
   matrix->LoadIdentity();
   // The camera must be pointing in the negative-z direction, and use
   // the perspective view: aspect ratio=1280:720, field of view = 45 degrees.
-  matrix->Perspective(45, (1.0 * 1280) / (1.0 * 720), 0.01, 5.0);
+  matrix->Perspective(60, (1.0 * 1280) / (1.0 * 720), 0.01, 200);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
 }
 
@@ -348,37 +348,43 @@ void initScene(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  sizePositions = 9;
-  sizeColors = 12;
+  int height = heightmapImage->getHeight();
+  int width = heightmapImage->getWidth();
+
+  sizePositions = height * width * 3;
+  sizeColors = height * width * 4;
 
   // init image
   positions = new float[sizePositions];
   colors = new float[sizeColors];
   // {{0.0, 0.0, -1.0}, {1.0, 0.0, -1.0}, {0.0, 1.0, -1.0}};
-  // {{1.0, 0.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 1.0}, {0.0, 0.0, 1.0, 1.0}}
+  // {{1.0, 0.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 1.0}, {0.0, 0.0, 1.0, 1.0}
 
-  positions[0] = 0.0;
-  positions[1] = 0.0;
-  positions[2] = -1.0;
-  positions[3] = 1.0;
-  positions[4] = 0.0;
-  positions[5] = -1.0;
-  positions[6] = 0.0;
-  positions[7] = 1.0;
-  positions[8] = -1.0;
+  for (int i = 0; i < width; i++)
+  {
+    int offset = i * height * 3;
+    for (int j = 0; j < height; j++)
+    {
+      positions[offset + j * 3] = (float)i;
+      positions[offset + j * 3 + 1] = (float)(landScale[1] * heightmapImage->getPixel(i, j, 0));
+      positions[offset + j * 3 + 2] = (float)-j;
+    }
+  }
 
-  colors[0] = 1.0;
-  colors[1] = 1.0;
-  colors[2] = 1.0;
-  colors[3] = 1.0;
-  colors[4] = 1.0;
-  colors[5] = 1.0;
-  colors[6] = 1.0;
-  colors[7] = 1.0;
-  colors[8] = 1.0;
-  colors[9] = 1.0;
-  colors[10] = 1.0;
-  colors[11] = 1.0;
+  for (int i = 0; i < width; i++)
+  {
+    int offset = i * height * 4;
+    for (int j = 0; j < height; j++)
+    {
+      colors[offset + j * 4] = 1.0;
+      colors[offset + j * 4 + 1] = 1.0;
+      colors[offset + j * 4 + 2] = 1.0;
+      colors[offset + j * 4 + 3] = 1.0;
+    }
+  }
+  cout << positions[sizePositions - 3] << endl;
+  cout << positions[sizePositions - 2] << endl;
+  cout << positions[sizePositions - 1] << endl;
 
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   cout << "inital color cleared" << endl;
