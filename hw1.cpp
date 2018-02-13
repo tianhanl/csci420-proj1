@@ -133,7 +133,8 @@ void displayFunc()
           GL_DEPTH_BUFFER_BIT);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  matrix->LookAt(0, 0, 3, 0, 0, -1, 0, 1, 0);
+  // ex, ey, ez, fx, fy, fz, ux, uy, uz
+  matrix->LookAt(0, 0, 0, 0, 0, -100, 0, 1, 0);
   // matrix->Rotate(theta[0], 1.0, 0.0, 0.0);
   // matrix->Rotate(theta[1], 0.0, 1.0, 0.0);
   // matrix->Rotate(theta[2], 0.0, 0.0, 1.0);
@@ -365,37 +366,28 @@ void initScene(int argc, char *argv[])
   int width = heightmapImage->getWidth();
   int height = heightmapImage->getHeight();
 
-  // // fill the points
-  // for (int i = 0; i < width; i++)
-  // {
-  //   for (int j = 0; j < height; j++)
-  //   {
-  //     positions.push_back((float)i);
-  //     positions.push_back((float)(landScale[1] * heightmapImage->getPixel(i, j, 0)));
-  //     positions.push_back((float)j);
-  //   }
-  // }
-  // for (int i = 0; i < width; i++)
-  // {
-  //   int offsetPos = i * height * 4;
-  //   for (int j = 0; j < height; j++)
-  //   {
-  //     colors.push_back(1.0);
-  //     colors.push_back(0.0);
-  //     colors.push_back(0.0);
-  //     colors.push_back(1.0);
-  //   }
-  // }
-
-  positions.push_back(-1.0);
-  positions.push_back(-1.0);
-  positions.push_back(-1.0);
-
-  colors.push_back(0.0);
-  colors.push_back(0.0);
-  colors.push_back(0.0);
-  colors.push_back(0.0);
-
+  // fill the points
+  for (int i = 0; i < width; i++)
+  {
+    for (int j = 0; j < height; j++)
+    {
+      positions.push_back((float)i);
+      positions.push_back((float)(landScale[1] * heightmapImage->getPixel(i, j, 0)));
+      positions.push_back((float)-j);
+    }
+  }
+  for (int i = 0; i < width; i++)
+  {
+    for (int j = 0; j < height; j++)
+    {
+      colors.push_back(0.0);
+      colors.push_back(0.0);
+      colors.push_back(0.0);
+      colors.push_back(1.0);
+    }
+  }
+  cout << "Elements in positions" << positions.size() << endl;
+  cout << "Elements in colors" << colors.size() << endl;
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   // do additional initialization here...
   glEnable(GL_DEPTH_TEST);
