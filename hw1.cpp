@@ -64,9 +64,11 @@ GLfloat theta[3] = {0.0, 0.0, 0.0};
 BasicPipelineProgram *pipelineProgram;
 
 // temporary vertexes for a triangle
-float positions[3][3] = {{0.0, 0.0, -1.0}, {1.0, 0.0, -1.0}, {0.0, 1.0, -1.0}};
+float *positions;
+int sizePositions;
 
-float colors[3][4] = {{1.0, 0.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 1.0}, {0.0, 0.0, 1.0, 1.0}};
+float *colors;
+int sizeColors;
 
 // write a screenshot to the specified filename
 void saveScreenshot(const char *filename)
@@ -110,8 +112,8 @@ void bindProgram()
 void renderTriangle()
 {
   GLint first = 0;
-  GLsizei numberOfVertices = 3;
-  glDrawArrays(GL_POINTS, first, numberOfVertices);
+  GLsizei numberOfVertices = sizePositions / 3;
+  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
   glBindVertexArray(0);
 }
 
@@ -272,7 +274,9 @@ void keyboardFunc(unsigned char key, int x, int y)
 {
   switch (key)
   {
-  case 27:   // ESC key
+  case 27: // ESC key
+    delete[] positions;
+    delete[] colors;
     exit(0); // exit the program
     break;
 
@@ -292,15 +296,13 @@ void initVBO()
 {
   glGenBuffers(1, &buffer);
   glBindBuffer(GL_ARRAY_BUFFER, buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(positions) + sizeof(colors), NULL, GL_STATIC_DRAW);
-  cout << sizeof(positions) + sizeof(colors) << endl;
+  glBufferData(GL_ARRAY_BUFFER, sizePositions * sizeof(float) + sizeColors * sizeof(float), NULL, GL_STATIC_DRAW);
   cout << "buffered binded" << endl;
   // upload position data
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(positions), positions);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizePositions * sizeof(float), positions);
   cout << "uploaded position data" << endl;
-  cout << sizeof(positions) << endl;
   // upload color data
-  glBufferSubData(GL_ARRAY_BUFFER, sizeof(positions), sizeof(colors), colors);
+  glBufferSubData(GL_ARRAY_BUFFER, sizePositions * sizeof(float), sizeColors * sizeof(float), colors);
   cout << "uploaded color data" << endl;
 }
 
@@ -329,7 +331,7 @@ void initVAO()
 
   GLuint loc2 = glGetAttribLocation(program, "color");
   glEnableVertexAttribArray(loc2);
-  offset = (const void *)sizeof(positions);
+  offset = (const void *)(sizePositions * sizeof(float));
   glVertexAttribPointer(loc2, 4, GL_FLOAT, normalized, stride, offset);
 
   // write projection and modelview matrix to shader
@@ -345,6 +347,38 @@ void initScene(int argc, char *argv[])
     cout << "Error reading image " << argv[1] << "." << endl;
     exit(EXIT_FAILURE);
   }
+
+  sizePositions = 9;
+  sizeColors = 12;
+
+  // init image
+  positions = new float[sizePositions];
+  colors = new float[sizeColors];
+  // {{0.0, 0.0, -1.0}, {1.0, 0.0, -1.0}, {0.0, 1.0, -1.0}};
+  // {{1.0, 0.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 1.0}, {0.0, 0.0, 1.0, 1.0}}
+
+  positions[0] = 0.0;
+  positions[1] = 0.0;
+  positions[2] = -1.0;
+  positions[3] = 1.0;
+  positions[4] = 0.0;
+  positions[5] = -1.0;
+  positions[6] = 0.0;
+  positions[7] = 1.0;
+  positions[8] = -1.0;
+
+  colors[0] = 1.0;
+  colors[1] = 1.0;
+  colors[2] = 1.0;
+  colors[3] = 1.0;
+  colors[4] = 1.0;
+  colors[5] = 1.0;
+  colors[6] = 1.0;
+  colors[7] = 1.0;
+  colors[8] = 1.0;
+  colors[9] = 1.0;
+  colors[10] = 1.0;
+  colors[11] = 1.0;
 
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   cout << "inital color cleared" << endl;
