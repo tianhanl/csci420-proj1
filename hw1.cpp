@@ -3,7 +3,12 @@
   Assignment 1: Height Fields
   C++ starter code
 
-  Student username: <type your USC username here>
+  Student username: tianhanl
+*/
+
+/*
+  Requirement:
+  
 */
 
 #include <iostream>
@@ -126,11 +131,12 @@ void displayFunc()
           GL_DEPTH_BUFFER_BIT);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  matrix->LookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
-  // matrix->Rotate(theta[0], 1.0, 0.0, 0.0);
-  // matrix->Rotate(theta[1], 0.0, 1.0, 0.0);
-  // matrix->Rotate(theta[2], 0.0, 0.0, 1.0);
-
+  matrix->LookAt(125, 500, -120, 125, 0, -125, 0, 1, 0);
+  matrix->Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
+  matrix->Rotate(landRotate[0], 1.0, 0.0, 0.0);
+  matrix->Rotate(landRotate[1], 0.0, 1.0, 0.0);
+  matrix->Rotate(landRotate[2], 0.0, 0.0, 1.0);
+  matrix->Scale(landScale[0], landScale[1], landScale[2]);
   bindProgram();
   renderTriangle();
   glutSwapBuffers();
@@ -156,7 +162,7 @@ void reshapeFunc(int w, int h)
   matrix->LoadIdentity();
   // The camera must be pointing in the negative-z direction, and use
   // the perspective view: aspect ratio=1280:720, field of view = 45 degrees.
-  matrix->Perspective(60, (1.0 * 1280) / (1.0 * 720), 0.01, 200);
+  matrix->Perspective(45, (1.0 * 1280) / (1.0 * 720), 0.01, 1000.0);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
 }
 
@@ -360,13 +366,15 @@ void initScene(int argc, char *argv[])
   // {{0.0, 0.0, -1.0}, {1.0, 0.0, -1.0}, {0.0, 1.0, -1.0}};
   // {{1.0, 0.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 1.0}, {0.0, 0.0, 1.0, 1.0}
 
+  float scale = 0.5;
+
   for (int i = 0; i < width; i++)
   {
     int offset = i * height * 3;
     for (int j = 0; j < height; j++)
     {
       positions[offset + j * 3] = (float)i;
-      positions[offset + j * 3 + 1] = (float)(landScale[1] * heightmapImage->getPixel(i, j, 0));
+      positions[offset + j * 3 + 1] = (float)(scale * heightmapImage->getPixel(i, j, 0));
       positions[offset + j * 3 + 2] = (float)-j;
     }
   }
