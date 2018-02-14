@@ -7,8 +7,11 @@
 */
 
 /*
-  Requirement:
-  
+  Notice:
+  Users may change how the height map was rendered as follows:
+  p : points mode
+  l : lines mode
+  t : triangles mode
 */
 
 #include <iostream>
@@ -62,6 +65,13 @@ ImageIO *heightmapImage;
 GLuint buffer;
 GLuint vao;
 
+const int pointMode = 0;
+const int lineMode = 1;
+const int triangleMode = 2;
+
+// set default mode as point mode
+int currMode = pointMode;
+
 OpenGLMatrix *matrix;
 
 GLfloat theta[3] = {0.0, 0.0, 0.0};
@@ -114,11 +124,27 @@ void bindProgram()
   glBindVertexArray(vao);
 }
 
-void renderTriangle()
+void renderPoints()
 {
   GLint first = 0;
   GLsizei numberOfVertices = sizePositions / 3;
   glDrawArrays(GL_POINTS, first, numberOfVertices);
+  glBindVertexArray(0);
+}
+
+void renderLines()
+{
+  GLint first = 0;
+  GLsizei numberOfVertices = sizePositions / 3;
+  glDrawArrays(GL_LINES, first, numberOfVertices);
+  glBindVertexArray(0);
+}
+
+void renderTriangles()
+{
+  GLint first = 0;
+  GLsizei numberOfVertices = sizePositions / 3;
+  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
   glBindVertexArray(0);
 }
 
@@ -138,7 +164,22 @@ void displayFunc()
   matrix->Rotate(landRotate[2], 0.0, 0.0, 1.0);
   matrix->Scale(landScale[0], landScale[1], landScale[2]);
   bindProgram();
-  renderTriangle();
+  // change how the program render the vertices
+  switch (currMode)
+  {
+  case pointMode:
+    renderPoints();
+    break;
+  case lineMode:
+    renderLines();
+    break;
+  case triangleMode:
+    renderTriangles();
+    break;
+  default:
+    renderPoints();
+    break;
+  }
   glutSwapBuffers();
 }
 
@@ -293,6 +334,15 @@ void keyboardFunc(unsigned char key, int x, int y)
   case 'x':
     // take a screenshot
     saveScreenshot("screenshot.jpg");
+    break;
+  case 'p':
+    currMode = pointMode;
+    break;
+  case 'l':
+    currMode = lineMode;
+    break;
+  case 't':
+    currMode = triangleMode;
     break;
   }
 }
