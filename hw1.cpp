@@ -136,7 +136,7 @@ void renderLines()
 {
   GLint first = 0;
   GLsizei numberOfVertices = sizePositions / 3;
-  glDrawArrays(GL_LINES, first, numberOfVertices);
+  glDrawArrays(GL_LINE_LOOP, first, numberOfVertices);
   glBindVertexArray(0);
 }
 
@@ -144,7 +144,7 @@ void renderTriangles()
 {
   GLint first = 0;
   GLsizei numberOfVertices = sizePositions / 3;
-  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
+  glDrawArrays(GL_TRIANGLE_STRIP, first, numberOfVertices);
   glBindVertexArray(0);
 }
 
