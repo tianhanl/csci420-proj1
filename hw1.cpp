@@ -437,34 +437,35 @@ void initpointVAO()
   glGenVertexArrays(1, &lineVAO);
   glBindVertexArray(lineVAO);
   glBindBuffer(GL_ARRAY_BUFFER, lineBuffer);
-  GLuint loc3 = glGetAttribLocation(program, "position");
-  glEnableVertexAttribArray(loc3);
+  glEnableVertexAttribArray(loc);
   offset = (const void *)0;
-  glVertexAttribPointer(loc3, 3, GL_FLOAT, normalized, stride, offset);
-  GLuint loc4 = glGetAttribLocation(program, "color");
-  glEnableVertexAttribArray(loc4);
+  glVertexAttribPointer(loc, 3, GL_FLOAT, normalized, stride, offset);
+  glEnableVertexAttribArray(loc2);
   offset = (const void *)(linePositionsSize * sizeof(float));
-  glVertexAttribPointer(loc4, 4, GL_FLOAT, normalized, stride, offset);
+  glVertexAttribPointer(loc2, 4, GL_FLOAT, normalized, stride, offset);
   glBindVertexArray(0);
 
   // triangles
   glGenVertexArrays(1, &triangleVAO);
   glBindVertexArray(triangleVAO);
   glBindBuffer(GL_ARRAY_BUFFER, triangleBuffer);
-  GLuint loc5 = glGetAttribLocation(program, "position");
-  glEnableVertexAttribArray(loc5);
+  glEnableVertexAttribArray(loc);
   offset = (const void *)0;
-  glVertexAttribPointer(loc5, 3, GL_FLOAT, normalized, stride, offset);
-  GLuint loc6 = glGetAttribLocation(program, "color");
-  glEnableVertexAttribArray(loc6);
+  glVertexAttribPointer(loc, 3, GL_FLOAT, normalized, stride, offset);
+  glEnableVertexAttribArray(loc2);
   offset = (const void *)(trianglePositionsSize * sizeof(float));
-  glVertexAttribPointer(loc6, 4, GL_FLOAT, normalized, stride, offset);
+  glVertexAttribPointer(loc2, 4, GL_FLOAT, normalized, stride, offset);
   glBindVertexArray(0);
 }
 
 int pointIsAt(int x, int y, int height, int span)
 {
   return x * height * span + y * span;
+}
+
+float calculateGradient(float fromVal, float toVal, float fraction)
+{
+  return fromVal + (toVal - fromVal) * fraction;
 }
 
 void initScene(int argc, char *argv[])
@@ -505,10 +506,12 @@ void initScene(int argc, char *argv[])
     int offset = i * height * 4;
     for (int j = 0; j < height; j++)
     {
-      pointColors[offset + j * 4] = 1.0;
-      pointColors[offset + j * 4 + 1] = 1.0;
-      pointColors[offset + j * 4 + 2] = 1.0;
-      pointColors[offset + j * 4 + 3] = 1.0;
+      // 51 8 103
+      float fraction = heightmapImage->getPixel(i, j, 0) / 255.0;
+      pointColors[offset + j * 4] = calculateGradient(67, 24, fraction) / 255.0;
+      pointColors[offset + j * 4 + 1] = calculateGradient(206, 90, fraction) / 255.0;
+      pointColors[offset + j * 4 + 2] = calculateGradient(162, 157, fraction) / 255.0;
+      pointColors[offset + j * 4 + 3] = fraction;
     }
   }
 
@@ -615,9 +618,9 @@ void initScene(int argc, char *argv[])
       trianglePositions[currLineAt + 1] = pointPositions[locPointBottomRight + 1];
       trianglePositions[currLineAt + 2] = pointPositions[locPointBottomRight + 2];
       currLineAt += 3;
-      trianglePositions[currLineAt] = pointPositions[locPointTopRight];
-      trianglePositions[currLineAt + 1] = pointPositions[locPointTopRight + 1];
-      trianglePositions[currLineAt + 2] = pointPositions[locPointTopRight + 2];
+      trianglePositions[currLineAt] = pointPositions[locPointTopLeft];
+      trianglePositions[currLineAt + 1] = pointPositions[locPointTopLeft + 1];
+      trianglePositions[currLineAt + 2] = pointPositions[locPointTopLeft + 2];
       currLineAt += 3;
 
       // add top right triangle
@@ -625,13 +628,13 @@ void initScene(int argc, char *argv[])
       trianglePositions[currLineAt + 1] = pointPositions[locPointTopLeft + 1];
       trianglePositions[currLineAt + 2] = pointPositions[locPointTopLeft + 2];
       currLineAt += 3;
-      trianglePositions[currLineAt] = pointPositions[locPointBottomRight];
-      trianglePositions[currLineAt + 1] = pointPositions[locPointBottomRight + 1];
-      trianglePositions[currLineAt + 2] = pointPositions[locPointBottomRight + 2];
-      currLineAt += 3;
       trianglePositions[currLineAt] = pointPositions[locPointTopRight];
       trianglePositions[currLineAt + 1] = pointPositions[locPointTopRight + 1];
       trianglePositions[currLineAt + 2] = pointPositions[locPointTopRight + 2];
+      currLineAt += 3;
+      trianglePositions[currLineAt] = pointPositions[locPointBottomRight];
+      trianglePositions[currLineAt + 1] = pointPositions[locPointBottomRight + 1];
+      trianglePositions[currLineAt + 2] = pointPositions[locPointBottomRight + 2];
       currLineAt += 3;
     }
   }
@@ -657,10 +660,10 @@ void initScene(int argc, char *argv[])
       triangleColors[currLineAt + 2] = pointColors[locPointBottomRight + 2];
       triangleColors[currLineAt + 3] = pointColors[locPointBottomRight + 3];
       currLineAt += 4;
-      triangleColors[currLineAt] = pointColors[locPointTopRight];
-      triangleColors[currLineAt + 1] = pointColors[locPointTopRight + 1];
-      triangleColors[currLineAt + 2] = pointColors[locPointTopRight + 2];
-      triangleColors[currLineAt + 3] = pointColors[locPointTopRight + 3];
+      triangleColors[currLineAt] = pointColors[locPointTopLeft];
+      triangleColors[currLineAt + 1] = pointColors[locPointTopLeft + 1];
+      triangleColors[currLineAt + 2] = pointColors[locPointTopLeft + 2];
+      triangleColors[currLineAt + 3] = pointColors[locPointTopLeft + 3];
       currLineAt += 4;
 
       // add top right triangle
@@ -669,15 +672,15 @@ void initScene(int argc, char *argv[])
       triangleColors[currLineAt + 2] = pointColors[locPointTopLeft + 2];
       triangleColors[currLineAt + 3] = pointColors[locPointTopLeft + 3];
       currLineAt += 4;
-      triangleColors[currLineAt] = pointColors[locPointBottomRight];
-      triangleColors[currLineAt + 1] = pointColors[locPointBottomRight + 1];
-      triangleColors[currLineAt + 2] = pointColors[locPointBottomRight + 2];
-      triangleColors[currLineAt + 3] = pointColors[locPointBottomRight + 3];
-      currLineAt += 4;
       triangleColors[currLineAt] = pointColors[locPointTopRight];
       triangleColors[currLineAt + 1] = pointColors[locPointTopRight + 1];
       triangleColors[currLineAt + 2] = pointColors[locPointTopRight + 2];
       triangleColors[currLineAt + 3] = pointColors[locPointTopRight + 3];
+      currLineAt += 4;
+      triangleColors[currLineAt] = pointColors[locPointBottomRight];
+      triangleColors[currLineAt + 1] = pointColors[locPointBottomRight + 1];
+      triangleColors[currLineAt + 2] = pointColors[locPointBottomRight + 2];
+      triangleColors[currLineAt + 3] = pointColors[locPointBottomRight + 3];
       currLineAt += 4;
     }
   }
