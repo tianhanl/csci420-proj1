@@ -3,7 +3,19 @@
   Assignment 1: Height Fields
   C++ starter code
 
+
   Student username: Tianhang Liu
+*/
+
+/*
+  Notice:
+  Users may change how the height map was rendered as follows:
+  p : points mode
+  l : lines mode
+  t : triangles mode
+
+  The way to change the vao is correct, but there is problem in reading the points for lines.
+>>>>>>> hw1-finished
 */
 
 #include <iostream>
@@ -55,8 +67,21 @@ char windowTitle[512] = "CSCI 420 homework I";
 ImageIO *heightmapImage;
 
 // properties for OpenGL
-GLuint buffer;
-GLuint vao;
+GLuint pointBuffer;
+GLuint pointVAO;
+
+GLuint lineBuffer;
+GLuint lineVAO;
+
+GLuint triangleBuffer;
+GLuint triangleVAO;
+
+const int pointMode = 0;
+const int lineMode = 1;
+const int triangleMode = 2;
+
+// set default mode as point mode
+int currMode = pointMode;
 
 OpenGLMatrix *matrix;
 
@@ -64,15 +89,23 @@ GLfloat theta[3] = {0.0, 0.0, 0.0};
 
 BasicPipelineProgram *pipelineProgram;
 
-// temporary vertexes for a triangle
-// float positions[3][3] = {{0.0, 0.0, -1.0}, {1.0, 0.0, -1.0}, {0.0, 1.0, -1.0}};
+// vertexes for points
+float *pointPositions;
+int pointPositionsSize;
+float *pointColors;
+int pointColorsSize;
 
-// float colors[3][4] = {{1.0, 0.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 1.0}, {0.0, 0.0, 1.0, 1.0}};
-vector<float> positions;
-vector<float> colors;
+// vertexes for lines
+float *linePositions;
+int linePositionsSize;
+float *lineColors;
+int lineColorsSize;
 
-int sizePositions = 0;
-int sizeColors = 0;
+// vertexes for triangles
+float *trianglePositions;
+int trianglePositionsSize;
+float *triangleColors;
+int triangleColorsSize;
 
 // write a screenshot to the specified filename
 void saveScreenshot(const char *filename)
@@ -92,7 +125,7 @@ void saveScreenshot(const char *filename)
 
 void bindProgram()
 {
-  // bind buffer, so that glVertexAttribPointer refers to the corerect buffer
+  // bind pointBuffer, so that glVertexAttribPointer refers to the corerect pointBuffer
   // get a handle to the program
   GLuint program = pipelineProgram->GetProgramHandle();
   GLint h_modelViewMatrix = glGetUniformLocation(program, "modelViewMatrix");
@@ -113,13 +146,29 @@ void bindProgram()
   glUniformMatrix4fv(h_projectionMatrix, 1, isRowMajor, p);
 
   pipelineProgram->Bind();
-  glBindVertexArray(vao);
 }
 
-void renderTriangle()
+void renderPoints()
 {
   GLint first = 0;
-  GLsizei numberOfVertices = positions.size() / 3;
+  GLsizei numberOfVertices = pointPositionsSize / 3;
+  glDrawArrays(GL_POINTS, first, numberOfVertices);
+  glBindVertexArray(0);
+}
+
+void renderLines()
+{
+  GLint first = 0;
+  GLsizei numberOfVertices = linePositionsSize / 3;
+  glDrawArrays(GL_LINES, first, numberOfVertices);
+  glBindVertexArray(0);
+}
+
+void renderTriangles()
+{
+  GLint first = 0;
+  GLsizei numberOfVertices = trianglePositionsSize / 3;
+  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
   glBindVertexArray(0);
   glDrawArrays(GL_POINTS, first, numberOfVertices);
 }
@@ -128,19 +177,37 @@ void displayFunc()
 {
   // render some stuff...
   // the steps to display is to
-  // clear -> action -> draw -> swap (buffer)
+  // clear -> action -> draw -> swap (pointBuffer)
   glClear(GL_COLOR_BUFFER_BIT |
           GL_DEPTH_BUFFER_BIT);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  // ex, ey, ez, fx, fy, fz, ux, uy, uz
-  matrix->LookAt(0, 0, 0, 0, 0, -100, 0, 1, 0);
-  // matrix->Rotate(theta[0], 1.0, 0.0, 0.0);
-  // matrix->Rotate(theta[1], 0.0, 1.0, 0.0);
-  // matrix->Rotate(theta[2], 0.0, 0.0, 1.0);
-  // matrix->Scale(landScale[0], landScale[1], landScale[2]);
+  matrix->LookAt(125, 500, -120, 125, 0, -125, 0, 1, 0);
+  matrix->Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
+  matrix->Rotate(landRotate[0], 1.0, 0.0, 0.0);
+  matrix->Rotate(landRotate[1], 0.0, 1.0, 0.0);
+  matrix->Rotate(landRotate[2], 0.0, 0.0, 1.0);
+  matrix->Scale(landScale[0], landScale[1], landScale[2]);
   bindProgram();
-  renderTriangle();
+  // change how the program render the vertices
+  switch (currMode)
+  {
+  case pointMode:
+    glBindVertexArray(pointVAO);
+    renderPoints();
+    break;
+  case lineMode:
+    glBindVertexArray(lineVAO);
+    renderLines();
+    break;
+  case triangleMode:
+    glBindVertexArray(triangleVAO);
+    renderTriangles();
+    break;
+  default:
+    renderPoints();
+    break;
+  }
   glutSwapBuffers();
 }
 
@@ -164,7 +231,8 @@ void reshapeFunc(int w, int h)
   matrix->LoadIdentity();
   // The camera must be pointing in the negative-z direction, and use
   // the perspective view: aspect ratio=1280:720, field of view = 45 degrees.
-  matrix->Perspective(60, (1.0 * 1280) / (1.0 * 720), 0.01, 5.0);
+
+  matrix->Perspective(45, (1.0 * 1280) / (1.0 * 720), 0.01, 1000.0);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
 }
 
@@ -287,7 +355,12 @@ void keyboardFunc(unsigned char key, int x, int y)
   switch (key)
   {
   case 27: // ESC key
-
+    delete[] pointPositions;
+    delete[] pointColors;
+    delete[] linePositions;
+    delete[] lineColors;
+    delete[] triangleColors;
+    delete[] trianglePositions;
     exit(0); // exit the program
     break;
 
@@ -299,23 +372,49 @@ void keyboardFunc(unsigned char key, int x, int y)
     // take a screenshot
     saveScreenshot("screenshot.jpg");
     break;
+  case 'p':
+    currMode = pointMode;
+    break;
+  case 'l':
+    currMode = lineMode;
+    break;
+  case 't':
+    currMode = triangleMode;
+    break;
   }
 }
 
-// initialization for the vertex buffer object
+// initialization for the vertex pointBuffer object
 void initVBO()
 {
-  glGenBuffers(1, &buffer);
-  glBindBuffer(GL_ARRAY_BUFFER, buffer);
-  cout << "total size:" << positions.size() * sizeof(float) + colors.size() * sizeof(float) << endl;
-  glBufferData(GL_ARRAY_BUFFER, positions.size() * sizeof(float) + colors.size() * sizeof(float), NULL, GL_STATIC_DRAW);
-  // upload position data
-  cout << "position size:" << positions.size() * sizeof(float) << endl;
-  glBufferSubData(GL_ARRAY_BUFFER, 0, positions.size() * sizeof(float), positions.data());
 
-  cout << "color size:" << colors.size() * sizeof(float) << endl;
+  // vbo for points
+  glGenBuffers(1, &pointBuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  glBufferData(GL_ARRAY_BUFFER, pointPositionsSize * sizeof(float) + pointColorsSize * sizeof(float), NULL, GL_STATIC_DRAW);
+  // upload position data
+  glBufferSubData(GL_ARRAY_BUFFER, 0, pointPositionsSize * sizeof(float), pointPositions);
   // upload color data
-  glBufferSubData(GL_ARRAY_BUFFER, positions.size() * sizeof(float), colors.size() * sizeof(float), colors.data());
+  glBufferSubData(GL_ARRAY_BUFFER, pointPositionsSize * sizeof(float), pointColorsSize * sizeof(float), pointColors);
+
+  // vbo for lines
+  glGenBuffers(1, &lineBuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, lineBuffer);
+  glBufferData(GL_ARRAY_BUFFER, linePositionsSize * sizeof(float) + lineColorsSize * sizeof(float), NULL, GL_STATIC_DRAW);
+  // upload position data
+  glBufferSubData(GL_ARRAY_BUFFER, 0, linePositionsSize * sizeof(float), linePositions);
+  // upload color data
+  glBufferSubData(GL_ARRAY_BUFFER, linePositionsSize * sizeof(float), lineColorsSize * sizeof(float), lineColors);
+
+  // vbo for triangles
+  glGenBuffers(1, &triangleBuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, triangleBuffer);
+  glBufferData(GL_ARRAY_BUFFER, trianglePositionsSize * sizeof(float) + triangleColorsSize * sizeof(float), NULL, GL_STATIC_DRAW);
+  // upload position data
+  glBufferSubData(GL_ARRAY_BUFFER, 0, trianglePositionsSize * sizeof(float), trianglePositions);
+  // upload color data
+  glBufferSubData(GL_ARRAY_BUFFER, trianglePositionsSize * sizeof(float), triangleColorsSize * sizeof(float), triangleColors);
+  cout << "triangle finished" << endl;
 }
 
 // initialization for the pipeline (shaders, etc.)
@@ -327,27 +426,59 @@ void initPipelineProgram()
   pipelineProgram->Bind();
 }
 
-void initVAO()
+void initpointVAO()
 {
+
   GLuint program = pipelineProgram->GetProgramHandle();
-  glGenVertexArrays(1, &vao);
-  glBindVertexArray(vao);
   GLsizei stride = 0;
   GLboolean normalized = GL_FALSE;
 
-  glBindBuffer(GL_ARRAY_BUFFER, buffer);
+  glGenVertexArrays(1, &pointVAO);
+  glBindVertexArray(pointVAO);
+  // points
+  glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   GLuint loc = glGetAttribLocation(program, "position");
   glEnableVertexAttribArray(loc);
   const void *offset = (const void *)0;
   glVertexAttribPointer(loc, 3, GL_FLOAT, normalized, stride, offset);
-
   GLuint loc2 = glGetAttribLocation(program, "color");
   glEnableVertexAttribArray(loc2);
-  offset = (const void *)(positions.size() * sizeof(float));
+  offset = (const void *)(pointPositionsSize * sizeof(float));
   glVertexAttribPointer(loc2, 4, GL_FLOAT, normalized, stride, offset);
-
-  // write projection and modelview matrix to shader
   glBindVertexArray(0);
+  // lines
+  glGenVertexArrays(1, &lineVAO);
+  glBindVertexArray(lineVAO);
+  glBindBuffer(GL_ARRAY_BUFFER, lineBuffer);
+  glEnableVertexAttribArray(loc);
+  offset = (const void *)0;
+  glVertexAttribPointer(loc, 3, GL_FLOAT, normalized, stride, offset);
+  glEnableVertexAttribArray(loc2);
+  offset = (const void *)(linePositionsSize * sizeof(float));
+  glVertexAttribPointer(loc2, 4, GL_FLOAT, normalized, stride, offset);
+  glBindVertexArray(0);
+
+  // triangles
+  glGenVertexArrays(1, &triangleVAO);
+  glBindVertexArray(triangleVAO);
+  glBindBuffer(GL_ARRAY_BUFFER, triangleBuffer);
+  glEnableVertexAttribArray(loc);
+  offset = (const void *)0;
+  glVertexAttribPointer(loc, 3, GL_FLOAT, normalized, stride, offset);
+  glEnableVertexAttribArray(loc2);
+  offset = (const void *)(trianglePositionsSize * sizeof(float));
+  glVertexAttribPointer(loc2, 4, GL_FLOAT, normalized, stride, offset);
+  glBindVertexArray(0);
+}
+
+int pointIsAt(int x, int y, int height, int span)
+{
+  return x * height * span + y * span;
+}
+
+float calculateGradient(float fromVal, float toVal, float fraction)
+{
+  return fromVal + (toVal - fromVal) * fraction;
 }
 
 void initScene(int argc, char *argv[])
@@ -359,42 +490,219 @@ void initScene(int argc, char *argv[])
     cout << "Error reading image " << argv[1] << "." << endl;
     exit(EXIT_FAILURE);
   }
-
-  // reading positions and colors from images
-
-  // declare memory
-  int width = heightmapImage->getWidth();
   int height = heightmapImage->getHeight();
+  int width = heightmapImage->getWidth();
 
-  // fill the points
+  pointPositionsSize = height * width * 3;
+  pointColorsSize = height * width * 4;
+
+  // init image
+  pointPositions = new float[pointPositionsSize];
+  pointColors = new float[pointColorsSize];
+
+  // get all the points
+  float scale = 0.2;
   for (int i = 0; i < width; i++)
+  {
+    int offset = i * height * 3;
+    for (int j = 0; j < height; j++)
+    {
+      pointPositions[offset + j * 3] = (float)i;
+      pointPositions[offset + j * 3 + 1] = (float)(scale * heightmapImage->getPixel(i, j, 0));
+      pointPositions[offset + j * 3 + 2] = (float)-j;
+    }
+  }
+
+  for (int i = 0; i < width; i++)
+  {
+    int offset = i * height * 4;
+    for (int j = 0; j < height; j++)
+    {
+      // 51 8 103
+      float fraction = heightmapImage->getPixel(i, j, 0) / 255.0;
+      pointColors[offset + j * 4] = calculateGradient(67, 24, fraction) / 255.0;
+      pointColors[offset + j * 4 + 1] = calculateGradient(206, 90, fraction) / 255.0;
+      pointColors[offset + j * 4 + 2] = calculateGradient(162, 157, fraction) / 255.0;
+      pointColors[offset + j * 4 + 3] = fraction;
+    }
+  }
+
+  // craete lines vertices from poitns
+  cout << "Begin get lines" << endl;
+  linePositionsSize = ((height - 1) * width + height * (width - 1)) * 2 * 3;
+  lineColorsSize = ((height - 1) * width + height * (width - 1)) * 2 * 4;
+  linePositions = new float[linePositionsSize];
+  lineColors = new float[lineColorsSize];
+
+  // set up positions
+  int currLineAt = 0;
+  // vertical lines
+  for (int i = 0; i < width; i++)
+  {
+    for (int j = 0; j < height - 1; j++)
+    {
+      int pointALoc = pointIsAt(i, j, height, 3);
+      linePositions[currLineAt] = pointPositions[pointALoc];
+      linePositions[currLineAt + 1] = pointPositions[pointALoc + 1];
+      linePositions[currLineAt + 2] = pointPositions[pointALoc + 2];
+      linePositions[currLineAt + 3] = pointPositions[pointALoc + 3];
+      linePositions[currLineAt + 4] = pointPositions[pointALoc + 4];
+      linePositions[currLineAt + 5] = pointPositions[pointALoc + 5];
+      currLineAt += 6;
+    }
+  }
+  cout << "Finish vertical lines" << endl;
+  // horizontal lines
+  for (int i = 0; i < width - 1; i++)
   {
     for (int j = 0; j < height; j++)
     {
-      positions.push_back((float)i);
-      positions.push_back((float)(landScale[1] * heightmapImage->getPixel(i, j, 0)));
-      positions.push_back((float)-j);
+      int pointALoc = pointIsAt(i, j, height, 3);
+      linePositions[currLineAt] = pointPositions[pointALoc];
+      linePositions[currLineAt + 1] = pointPositions[pointALoc + 1];
+      linePositions[currLineAt + 2] = pointPositions[pointALoc + 2];
+      int pointBLoc = pointIsAt(i + 1, j, height, 3);
+      linePositions[currLineAt + 3] = pointPositions[pointBLoc];
+      linePositions[currLineAt + 4] = pointPositions[pointBLoc + 1];
+      linePositions[currLineAt + 5] = pointPositions[pointBLoc + 2];
+      currLineAt += 6;
     }
   }
+  cout << "Finish get positions" << endl;
+  // set up colors
+  currLineAt = 0;
   for (int i = 0; i < width; i++)
+  {
+    for (int j = 0; j < height - 1; j++)
+    {
+      int pointALoc = pointIsAt(i, j, height, 4);
+      lineColors[currLineAt] = pointColors[pointALoc];
+      lineColors[currLineAt + 1] = pointColors[pointALoc + 1];
+      lineColors[currLineAt + 2] = pointColors[pointALoc + 2];
+      lineColors[currLineAt + 3] = pointColors[pointALoc + 3];
+      lineColors[currLineAt + 4] = pointColors[pointALoc + 4];
+      lineColors[currLineAt + 5] = pointColors[pointALoc + 5];
+      lineColors[currLineAt + 6] = pointColors[pointALoc + 6];
+      lineColors[currLineAt + 7] = pointColors[pointALoc + 7];
+      currLineAt += 8;
+    }
+  }
+  for (int i = 0; i < width - 1; i++)
   {
     for (int j = 0; j < height; j++)
     {
-      colors.push_back(0.0);
-      colors.push_back(0.0);
-      colors.push_back(0.0);
-      colors.push_back(1.0);
+      int pointALoc = pointIsAt(i, j, height, 4);
+      lineColors[currLineAt] = pointColors[pointALoc];
+      lineColors[currLineAt + 1] = pointColors[pointALoc + 1];
+      lineColors[currLineAt + 2] = pointColors[pointALoc + 2];
+      lineColors[currLineAt + 3] = pointColors[pointALoc + 3];
+      int pointBLoc = pointIsAt(i + 1, j, height, 4);
+      lineColors[currLineAt + 4] = pointColors[pointBLoc];
+      lineColors[currLineAt + 5] = pointColors[pointBLoc + 1];
+      lineColors[currLineAt + 6] = pointColors[pointBLoc + 2];
+      lineColors[currLineAt + 7] = pointColors[pointBLoc + 3];
+      currLineAt += 8;
     }
   }
-  cout << "Elements in positions" << positions.size() << endl;
-  cout << "Elements in colors" << colors.size() << endl;
+
+  cout << "Begin get triangles" << endl;
+  trianglePositionsSize = (width - 1) * (height - 1) * 6 * 3;
+  triangleColorsSize = (width - 1) * (height - 1) * 6 * 4;
+  trianglePositions = new float[trianglePositionsSize];
+  triangleColors = new float[triangleColorsSize];
+
+  currLineAt = 0;
+  for (int i = 0; i < width - 1; i++)
+  {
+    for (int j = 0; j < height - 1; j++)
+    {
+      int locPointBottomLeft = pointIsAt(i, j, height, 3);
+      int locPointBottomRight = pointIsAt(i + 1, j, height, 3);
+      int locPointTopLeft = pointIsAt(i, j + 1, height, 3);
+      int locPointTopRight = pointIsAt(i + 1, j + 1, height, 3);
+
+      // add bottom left triangle
+      trianglePositions[currLineAt] = pointPositions[locPointBottomLeft];
+      trianglePositions[currLineAt + 1] = pointPositions[locPointBottomLeft + 1];
+      trianglePositions[currLineAt + 2] = pointPositions[locPointBottomLeft + 2];
+      currLineAt += 3;
+      trianglePositions[currLineAt] = pointPositions[locPointBottomRight];
+      trianglePositions[currLineAt + 1] = pointPositions[locPointBottomRight + 1];
+      trianglePositions[currLineAt + 2] = pointPositions[locPointBottomRight + 2];
+      currLineAt += 3;
+      trianglePositions[currLineAt] = pointPositions[locPointTopLeft];
+      trianglePositions[currLineAt + 1] = pointPositions[locPointTopLeft + 1];
+      trianglePositions[currLineAt + 2] = pointPositions[locPointTopLeft + 2];
+      currLineAt += 3;
+
+      // add top right triangle
+      trianglePositions[currLineAt] = pointPositions[locPointTopLeft];
+      trianglePositions[currLineAt + 1] = pointPositions[locPointTopLeft + 1];
+      trianglePositions[currLineAt + 2] = pointPositions[locPointTopLeft + 2];
+      currLineAt += 3;
+      trianglePositions[currLineAt] = pointPositions[locPointTopRight];
+      trianglePositions[currLineAt + 1] = pointPositions[locPointTopRight + 1];
+      trianglePositions[currLineAt + 2] = pointPositions[locPointTopRight + 2];
+      currLineAt += 3;
+      trianglePositions[currLineAt] = pointPositions[locPointBottomRight];
+      trianglePositions[currLineAt + 1] = pointPositions[locPointBottomRight + 1];
+      trianglePositions[currLineAt + 2] = pointPositions[locPointBottomRight + 2];
+      currLineAt += 3;
+    }
+  }
+
+  currLineAt = 0;
+  for (int i = 0; i < width - 1; i++)
+  {
+    for (int j = 0; j < height - 1; j++)
+    {
+      int locPointBottomLeft = pointIsAt(i, j, height, 4);
+      int locPointBottomRight = pointIsAt(i + 1, j, height, 4);
+      int locPointTopLeft = pointIsAt(i, j + 1, height, 4);
+      int locPointTopRight = pointIsAt(i + 1, j + 1, height, 4);
+
+      // add bottom left triangle
+      triangleColors[currLineAt] = pointColors[locPointBottomLeft];
+      triangleColors[currLineAt + 1] = pointColors[locPointBottomLeft + 1];
+      triangleColors[currLineAt + 2] = pointColors[locPointBottomLeft + 2];
+      triangleColors[currLineAt + 3] = pointColors[locPointBottomLeft + 3];
+      currLineAt += 4;
+      triangleColors[currLineAt] = pointColors[locPointBottomRight];
+      triangleColors[currLineAt + 1] = pointColors[locPointBottomRight + 1];
+      triangleColors[currLineAt + 2] = pointColors[locPointBottomRight + 2];
+      triangleColors[currLineAt + 3] = pointColors[locPointBottomRight + 3];
+      currLineAt += 4;
+      triangleColors[currLineAt] = pointColors[locPointTopLeft];
+      triangleColors[currLineAt + 1] = pointColors[locPointTopLeft + 1];
+      triangleColors[currLineAt + 2] = pointColors[locPointTopLeft + 2];
+      triangleColors[currLineAt + 3] = pointColors[locPointTopLeft + 3];
+      currLineAt += 4;
+
+      // add top right triangle
+      triangleColors[currLineAt] = pointColors[locPointTopLeft];
+      triangleColors[currLineAt + 1] = pointColors[locPointTopLeft + 1];
+      triangleColors[currLineAt + 2] = pointColors[locPointTopLeft + 2];
+      triangleColors[currLineAt + 3] = pointColors[locPointTopLeft + 3];
+      currLineAt += 4;
+      triangleColors[currLineAt] = pointColors[locPointTopRight];
+      triangleColors[currLineAt + 1] = pointColors[locPointTopRight + 1];
+      triangleColors[currLineAt + 2] = pointColors[locPointTopRight + 2];
+      triangleColors[currLineAt + 3] = pointColors[locPointTopRight + 3];
+      currLineAt += 4;
+      triangleColors[currLineAt] = pointColors[locPointBottomRight];
+      triangleColors[currLineAt + 1] = pointColors[locPointBottomRight + 1];
+      triangleColors[currLineAt + 2] = pointColors[locPointBottomRight + 2];
+      triangleColors[currLineAt + 3] = pointColors[locPointBottomRight + 3];
+      currLineAt += 4;
+    }
+  }
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   // do additional initialization here...
   glEnable(GL_DEPTH_TEST);
   matrix = new OpenGLMatrix();
   initVBO();
   initPipelineProgram();
-  initVAO();
+  initpointVAO();
 }
 
 int main(int argc, char *argv[])
