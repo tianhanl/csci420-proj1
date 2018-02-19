@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <cstring>
+#include <sstream>
 #include "openGLHeader.h"
 #include "glutHeader.h"
 
@@ -106,6 +107,9 @@ float *trianglePositions;
 int trianglePositionsSize;
 float *triangleColors;
 int triangleColorsSize;
+
+int currentFrameNumber = 0;
+bool needAnimate = false;
 
 // write a screenshot to the specified filename
 void saveScreenshot(const char *filename)
@@ -211,6 +215,35 @@ void displayFunc()
   glutSwapBuffers();
 }
 
+void animate()
+{
+  int step = 1;
+  landRotate[0] += step * 3;
+  // landRotate[1] += step;
+  // landRotate[2] += step * 5;
+  // landScale[0] *= 1.0f + step * 0.01f;
+  landScale[1] *= 1.0f - step * 0.01f;
+  // landScale[2] *= 1.0f - step * 0.01f;
+  // landTranslate[0] += step * 0.01f;
+  // landTranslate[1] -= step * 0.01f;
+  if (currentFrameNumber == 100)
+  {
+    currMode = lineMode;
+  }
+  else if (currentFrameNumber == 200)
+  {
+    currMode = triangleMode;
+  }
+  stringstream filename;
+  filename << "frame_" << currentFrameNumber << ".jpg";
+  saveScreenshot(filename.str().c_str());
+  currentFrameNumber++;
+  if (currentFrameNumber > 300)
+  {
+    needAnimate = false;
+  }
+}
+
 void idleFunc()
 {
   // do some stuff...
@@ -218,6 +251,10 @@ void idleFunc()
   // for example, here, you can save the screenshots to disk (to make the animation)
 
   // make the screen update
+  if (needAnimate)
+  {
+    animate();
+  }
   glutPostRedisplay();
 }
 
@@ -232,7 +269,7 @@ void reshapeFunc(int w, int h)
   // The camera must be pointing in the negative-z direction, and use
   // the perspective view: aspect ratio=1280:720, field of view = 45 degrees.
 
-  matrix->Perspective(45, (1.0 * 1280) / (1.0 * 720), 0.01, 1000.0);
+  matrix->Perspective(45, (1.0 * 1280) / (1.0 * 720), 0.01, 1500.0);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
 }
 
@@ -288,9 +325,6 @@ void mouseMotionDragFunc(int x, int y)
       // control z scaling via the middle mouse button
       landScale[2] *= 1.0f - mousePosDelta[1] * 0.01f;
     }
-    cout << landScale[0] << endl;
-    cout << landScale[1] << endl;
-    cout << landScale[2] << endl;
 
     break;
   }
@@ -380,6 +414,9 @@ void keyboardFunc(unsigned char key, int x, int y)
     break;
   case 't':
     currMode = triangleMode;
+    break;
+  case 'a':
+    needAnimate = true;
     break;
   }
 }
