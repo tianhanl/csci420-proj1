@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cmath>
 #include <vector>
 #include "openGLHeader.h"
 #include "imageIO.h"
@@ -127,6 +128,7 @@ int loadSplines(char *argv)
   FILE *fileList;
   FILE *fileSpline;
   int iType, i = 0, j, iLength;
+  uvs.push_back(1.0);
 
   // load the track file
   fileList = fopen(argv, "r");
@@ -174,6 +176,23 @@ int loadSplines(char *argv)
   free(cName);
 
   return 0;
+}
+
+Point calculateSpline(float u, Point controlPoint1, Point controlPoint2, Point controlPoint3, Point controlPoint4)
+{
+  Point output;
+  float middleMatrix[4][3];
+  for (int i = 0; i < 4; i++)
+  {
+    middleMatrix[i][0] = basis[i][0] * controlPoint1.x + basis[i][1] * controlPoint2.x + basis[i][2] * controlPoint3.x + basis[i][3] * controlPoint4.x;
+    middleMatrix[i][1] = basis[i][0] * controlPoint1.y + basis[i][1] * controlPoint2.y + basis[i][2] * controlPoint3.y + basis[i][3] * controlPoint4.y;
+    middleMatrix[i][2] = basis[i][0] * controlPoint1.z + basis[i][1] * controlPoint2.z + basis[i][2] * controlPoint3.z + basis[i][3] * controlPoint4.z;
+  }
+  float indexes[4] = {pow(u, 3.0), pow(u, 2.0), pow(u, 1.0), 1};
+  output.x = indexes[0] * middleMatrix[0][0] + indexes[1] * middleMatrix[1][0] + indexes[2] * middleMatrix[2][0] + indexes[3] * middleMatrix[3][0];
+  output.y = indexes[0] * middleMatrix[0][1] + indexes[1] * middleMatrix[1][1] + indexes[2] * middleMatrix[2][1] + indexes[3] * middleMatrix[3][1];
+  output.z = indexes[0] * middleMatrix[0][2] + indexes[1] * middleMatrix[1][2] + indexes[2] * middleMatrix[2][2] + indexes[3] * middleMatrix[3][2];
+  return output;
 }
 
 int initTexture(const char *imageFilename, GLuint textureHandle)
@@ -583,27 +602,31 @@ float calculateGradient(float fromVal, float toVal, float fraction)
 void initScene(int argc, char *argv[])
 {
   // load the image from a jpeg disk file to main memory
-  heightmapImage = new ImageIO();
-  if (heightmapImage->loadJPEG(argv[1]) != ImageIO::OK)
+  // heightmapImage = new ImageIO();
+  // if (heightmapImage->loadJPEG(argv[1]) != ImageIO::OK)
+  // {
+  //   cout << "Error reading image " << argv[1] << "." << endl;
+  //   exit(EXIT_FAILURE);
+  // }
+  for (int i = 0; i < numSplines; i++)
   {
-    cout << "Error reading image " << argv[1] << "." << endl;
-    exit(EXIT_FAILURE);
-  }
-  int height = heightmapImage->getHeight();
-  int width = heightmapImage->getWidth();
-  for (int i = 0; i < 100; i++)
-  {
-    pos.push_back(i);
-    pos.push_back(i);
-    pos.push_back(i);
-  }
-
-  for (int i = 0; i < 100; i++)
-  {
-    uvs.push_back(1);
-    uvs.push_back(0);
-    uvs.push_back(0);
-    uvs.push_back(1);
+    int currPointLength = splines[i].numControlPoints;
+    cout << "currPointLength: " << currPointLength << endl;
+    for (int j = 0; j <= currPointLength - 4; j++)
+    {
+      for (float u = 0; u <= 1.0; u += 0.01)
+      {
+        Point currPoint = calculateSpline(u, splines[i].points[j], splines[i].points[j + 1], splines[i].points[j + 2], splines[i].points[j + 3]);
+        pos.push_back(currPoint.x);
+        pos.push_back(currPoint.y);
+        pos.push_back(currPoint.z);
+        uvs.push_back(1.0);
+        uvs.push_back(0.0);
+        uvs.push_back(0.0);
+        uvs.push_back(1.0);
+      }
+      cout << "Finished a point" << endl;
+    }
   }
 
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
