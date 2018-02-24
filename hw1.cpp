@@ -93,6 +93,9 @@ BasicPipelineProgram *pipelineProgram;
 vector<float> pos;
 vector<float> uvs;
 
+// This constant will determine how much segements there will be between two points
+float USTEP = 0.001;
+
 int currentFrameNumber = 0;
 bool needAnimate = false;
 
@@ -317,7 +320,7 @@ void renderLines()
 {
   GLint first = 0;
   GLsizei numberOfVertices = pos.size() / 3;
-  glDrawArrays(GL_LINES, first, numberOfVertices);
+  glDrawArrays(GL_LINE_STRIP, first, numberOfVertices);
   glBindVertexArray(0);
 }
 
@@ -330,7 +333,7 @@ void displayFunc()
           GL_DEPTH_BUFFER_BIT);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  matrix->LookAt(125, 500, -120, 125, 0, -125, 0, 1, 0);
+  matrix->LookAt(0, 0, 3.690276557, 0, 0, -20, 0, 1, 0);
   matrix->Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
   matrix->Rotate(landRotate[0], 1.0, 0.0, 0.0);
   matrix->Rotate(landRotate[1], 0.0, 1.0, 0.0);
@@ -611,10 +614,9 @@ void initScene(int argc, char *argv[])
   for (int i = 0; i < numSplines; i++)
   {
     int currPointLength = splines[i].numControlPoints;
-    cout << "currPointLength: " << currPointLength << endl;
     for (int j = 0; j <= currPointLength - 4; j++)
     {
-      for (float u = 0; u <= 1.0; u += 0.01)
+      for (float u = 0; u <= 1.0; u += USTEP)
       {
         Point currPoint = calculateSpline(u, splines[i].points[j], splines[i].points[j + 1], splines[i].points[j + 2], splines[i].points[j + 3]);
         pos.push_back(currPoint.x);
@@ -625,7 +627,6 @@ void initScene(int argc, char *argv[])
         uvs.push_back(0.0);
         uvs.push_back(1.0);
       }
-      cout << "Finished a point" << endl;
     }
   }
 
