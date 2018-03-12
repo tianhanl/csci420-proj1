@@ -118,8 +118,20 @@ vector<float> groundPos;
 vector<float> groundUVs;
 GLuint groundBuffer;
 GLuint groundVao;
+// Variabales for sky
+vector<float> skyPos;
+vector<float> skyUVs;
+GLuint skyBuffer;
+GLuint skyVao;
 
 GLuint program;
+// variables for calculation cubes
+float minX = 9999999;
+float maxX = -9999999;
+float minY = 9999999;
+float maxY = -9999999;
+float minZ = 9999999;
+float maxZ = -9999999;
 
 int loadSplines(char *argv)
 {
@@ -341,6 +353,16 @@ void renderGround()
   glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
   glBindVertexArray(0);
 }
+void renderSky()
+{
+  glBindVertexArray(skyVao);
+  setTextureUnit(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, skyTextureHandle);
+  GLint first = 0;
+  GLsizei numberOfVertices = skyPos.size() / 3;
+  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
+  glBindVertexArray(0);
+}
 void displayFunc()
 {
   // render some stuff...
@@ -350,7 +372,7 @@ void displayFunc()
           GL_DEPTH_BUFFER_BIT);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  matrix->LookAt(0, 0, 3.690276557, 0, 0, -20, 0, 1, 0);
+  matrix->LookAt((maxX + minX) / 2, minY + 1, minZ, 0, 0, maxZ + 20, 0, 1, 0);
   matrix->Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
   matrix->Rotate(landRotate[0], 1.0, 0.0, 0.0);
   matrix->Rotate(landRotate[1], 0.0, 1.0, 0.0);
@@ -362,6 +384,8 @@ void displayFunc()
   renderSplines();
 
   renderGround();
+
+  renderSky();
 
   glutSwapBuffers();
 }
@@ -588,6 +612,15 @@ void initVBO()
   glBufferSubData(GL_ARRAY_BUFFER, 0, groundPos.size() * sizeof(float), groundPos.data());
   // upload color data
   glBufferSubData(GL_ARRAY_BUFFER, groundPos.size() * sizeof(float), groundUVs.size() * sizeof(float), groundUVs.data());
+
+  //vbo for sky
+  glGenBuffers(1, &skyBuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, skyBuffer);
+  glBufferData(GL_ARRAY_BUFFER, (skyPos.size() + skyUVs.size()) * sizeof(float), NULL, GL_STATIC_DRAW);
+  // upload position data
+  glBufferSubData(GL_ARRAY_BUFFER, 0, skyPos.size() * sizeof(float), skyPos.data());
+  // upload color data
+  glBufferSubData(GL_ARRAY_BUFFER, skyPos.size() * sizeof(float), skyUVs.size() * sizeof(float), skyUVs.data());
 }
 
 // initialization for the pipeline (shaders, etc.)
@@ -619,7 +652,7 @@ void initpointVAO()
   offset = (const void *)(pos.size() * sizeof(float));
   glVertexAttribPointer(loc2, 2, GL_FLOAT, normalized, stride, offset);
   glBindVertexArray(0);
-
+  // ground
   glGenVertexArrays(1, &groundVao);
   glBindVertexArray(groundVao);
   glBindBuffer(GL_ARRAY_BUFFER, groundBuffer);
@@ -630,6 +663,19 @@ void initpointVAO()
   loc2 = glGetAttribLocation(program, "texCoord");
   glEnableVertexAttribArray(loc2);
   offset = (const void *)(groundPos.size() * sizeof(float));
+  glVertexAttribPointer(loc2, 2, GL_FLOAT, normalized, stride, offset);
+  glBindVertexArray(0);
+  // sky
+  glGenVertexArrays(1, &skyVao);
+  glBindVertexArray(skyVao);
+  glBindBuffer(GL_ARRAY_BUFFER, skyBuffer);
+  loc = glGetAttribLocation(program, "position");
+  glEnableVertexAttribArray(loc);
+  offset = (const void *)0;
+  glVertexAttribPointer(loc, 3, GL_FLOAT, normalized, stride, offset);
+  loc2 = glGetAttribLocation(program, "texCoord");
+  glEnableVertexAttribArray(loc2);
+  offset = (const void *)(skyPos.size() * sizeof(float));
   glVertexAttribPointer(loc2, 2, GL_FLOAT, normalized, stride, offset);
   glBindVertexArray(0);
 }
@@ -682,12 +728,6 @@ void initScene(int argc, char *argv[])
   //   exit(EXIT_FAILURE);
   // }
   initTextures();
-  float minX = 9999999;
-  float maxX = -9999999;
-  float minY = 9999999;
-  float maxY = -9999999;
-  float minZ = 9999999;
-  float maxZ = -9999999;
 
   for (int i = 0; i < numSplines; i++)
   {
@@ -717,27 +757,39 @@ void initScene(int argc, char *argv[])
       }
     }
   }
-  // initialize ground
   float padding = maxX - minX;
-  groundPos.push_back(minX);
-  groundPos.push_back(minY);
-  groundPos.push_back(minZ - padding);
-  groundPos.push_back(maxX);
-  groundPos.push_back(minY);
-  groundPos.push_back(minZ - padding);
-  groundPos.push_back(maxX);
-  groundPos.push_back(minY);
-  groundPos.push_back(maxZ + padding);
+  minZ -= padding;
+  maxZ += padding;
+  maxX += padding;
+  minX -= padding;
+  maxY += padding;
 
+  // no padding for miny since ground has to touch bottom of splines
+  // initialize ground
+  // frontBottomLeft
   groundPos.push_back(minX);
   groundPos.push_back(minY);
-  groundPos.push_back(minZ - padding);
-  groundPos.push_back(minX);
-  groundPos.push_back(minY);
-  groundPos.push_back(maxZ + padding);
+  groundPos.push_back(minZ);
+  // fontBottomRight
   groundPos.push_back(maxX);
   groundPos.push_back(minY);
-  groundPos.push_back(maxZ + padding);
+  groundPos.push_back(minZ);
+  // backBottomRight;
+  groundPos.push_back(maxX);
+  groundPos.push_back(minY);
+  groundPos.push_back(maxZ);
+  // fontBottomLeft
+  groundPos.push_back(minX);
+  groundPos.push_back(minY);
+  groundPos.push_back(minZ);
+  // backBottomLeft
+  groundPos.push_back(minX);
+  groundPos.push_back(minY);
+  groundPos.push_back(maxZ);
+  // backBottomRight
+  groundPos.push_back(maxX);
+  groundPos.push_back(minY);
+  groundPos.push_back(maxZ);
 
   groundUVs.push_back(1.0);
   groundUVs.push_back(0.0);
@@ -751,6 +803,197 @@ void initScene(int argc, char *argv[])
   groundUVs.push_back(1);
   groundUVs.push_back(0);
   groundUVs.push_back(1);
+  // initialize sky
+  // front
+  // frontBottomLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(minY);
+  skyPos.push_back(minZ);
+  // fontBottomRight
+  skyPos.push_back(maxX);
+  skyPos.push_back(minY);
+  skyPos.push_back(minZ);
+  // frontTopRight;
+  skyPos.push_back(maxX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(minZ);
+  // frontBottomLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(minY);
+  skyPos.push_back(minZ);
+  // frontTopLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(minZ);
+  // frontTopRight
+  skyPos.push_back(maxX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(minZ);
+
+  skyUVs.push_back(1.0);
+  skyUVs.push_back(0.0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(1);
+  skyUVs.push_back(1.0);
+  skyUVs.push_back(0.0);
+  skyUVs.push_back(1);
+  skyUVs.push_back(1);
+  skyUVs.push_back(0);
+  skyUVs.push_back(1);
+  // left
+  // backBottomLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(minY);
+  skyPos.push_back(maxZ);
+  // frontBottomLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(minY);
+  skyPos.push_back(minZ);
+  // frontTopLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(minZ);
+  // backBottomLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(minY);
+  skyPos.push_back(maxZ);
+  // backTopLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(maxZ);
+  // frontTopLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(minZ);
+
+  skyUVs.push_back(1.0);
+  skyUVs.push_back(0.0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(1);
+  skyUVs.push_back(1.0);
+  skyUVs.push_back(0.0);
+  skyUVs.push_back(1);
+  skyUVs.push_back(1);
+  skyUVs.push_back(0);
+  skyUVs.push_back(1);
+  // right
+  // backBottomRight
+  skyPos.push_back(maxX);
+  skyPos.push_back(minY);
+  skyPos.push_back(maxZ);
+  // fontBottomRight
+  skyPos.push_back(maxX);
+  skyPos.push_back(minY);
+  skyPos.push_back(minZ);
+  // frontTopRight;
+  skyPos.push_back(maxX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(minZ);
+  // backBottomRight
+  skyPos.push_back(maxX);
+  skyPos.push_back(minY);
+  skyPos.push_back(maxZ);
+  // backTopRight;
+  skyPos.push_back(maxX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(maxZ);
+  // frontTopRight;
+  skyPos.push_back(maxX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(minZ);
+
+  skyUVs.push_back(1.0);
+  skyUVs.push_back(0.0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(1);
+  skyUVs.push_back(1.0);
+  skyUVs.push_back(0.0);
+  skyUVs.push_back(1);
+  skyUVs.push_back(1);
+  skyUVs.push_back(0);
+  skyUVs.push_back(1);
+
+  // top
+  // frontTopLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(minZ);
+  // frontTopRight
+  skyPos.push_back(maxX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(minZ);
+  // backTopRight;
+  skyPos.push_back(maxX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(maxZ);
+  // frontTopLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(minZ);
+  // backTopLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(maxZ);
+  // backTopRight;
+  skyPos.push_back(maxX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(maxZ);
+
+  skyUVs.push_back(1.0);
+  skyUVs.push_back(0.0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(1);
+  skyUVs.push_back(1.0);
+  skyUVs.push_back(0.0);
+  skyUVs.push_back(1);
+  skyUVs.push_back(1);
+  skyUVs.push_back(0);
+  skyUVs.push_back(1);
+  // back
+  // backBottomLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(minY);
+  skyPos.push_back(maxZ);
+  // backBottomRight
+  skyPos.push_back(maxX);
+  skyPos.push_back(minY);
+  skyPos.push_back(maxZ);
+  // backTopRight;
+  skyPos.push_back(maxX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(maxZ);
+  // backBottomLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(minY);
+  skyPos.push_back(maxZ);
+  // backTopLeft
+  skyPos.push_back(minX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(maxZ);
+  // backTopRight;
+  skyPos.push_back(maxX);
+  skyPos.push_back(maxY);
+  skyPos.push_back(maxZ);
+  skyUVs.push_back(1.0);
+  skyUVs.push_back(0.0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(0);
+  skyUVs.push_back(1);
+  skyUVs.push_back(1.0);
+  skyUVs.push_back(0.0);
+  skyUVs.push_back(1);
+  skyUVs.push_back(1);
+  skyUVs.push_back(0);
+  skyUVs.push_back(1);
 
   glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
   // do additional initialization here...
