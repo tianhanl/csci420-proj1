@@ -691,26 +691,39 @@ void initScene(int argc, char *argv[])
     }
   }
   // initialize ground
-  cout << minX << minY << minZ << endl;
-  cout << maxX << maxY << maxZ << endl;
-  groundPos.push_back(0);
-  groundPos.push_back(0);
-  groundPos.push_back(0);
+  float padding = maxX - minX;
+  groundPos.push_back(minX);
+  groundPos.push_back(minY);
+  groundPos.push_back(minZ - padding);
+  groundPos.push_back(maxX);
+  groundPos.push_back(minY);
+  groundPos.push_back(minZ - padding);
+  groundPos.push_back(maxX);
+  groundPos.push_back(minY);
+  groundPos.push_back(maxZ + padding);
 
-  groundPos.push_back(0);
-  groundPos.push_back(0);
-  groundPos.push_back(100);
+  groundPos.push_back(minX);
+  groundPos.push_back(minY);
+  groundPos.push_back(minZ - padding);
+  groundPos.push_back(minX);
+  groundPos.push_back(minY);
+  groundPos.push_back(maxZ + padding);
+  groundPos.push_back(maxX);
+  groundPos.push_back(minY);
+  groundPos.push_back(maxZ + padding);
 
-  groundPos.push_back(100);
-  groundPos.push_back(0);
-  groundPos.push_back(0);
-
+  groundUVs.push_back(1.0);
   groundUVs.push_back(0.0);
+  groundUVs.push_back(0);
+  groundUVs.push_back(0);
+  groundUVs.push_back(0);
+  groundUVs.push_back(1);
+  groundUVs.push_back(1.0);
   groundUVs.push_back(0.0);
-  groundUVs.push_back(0.2);
-  groundUVs.push_back(0.2);
-  groundUVs.push_back(0.2);
-  groundUVs.push_back(0.0);
+  groundUVs.push_back(1);
+  groundUVs.push_back(1);
+  groundUVs.push_back(0);
+  groundUVs.push_back(1);
 
   glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
   // do additional initialization here...
