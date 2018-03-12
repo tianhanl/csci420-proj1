@@ -70,35 +70,24 @@ float landScale[3] = {1.0f, 1.0f, 1.0f};
 int windowWidth = 1280;
 int windowHeight = 720;
 char windowTitle[512] = "CSCI 420 homework I";
-
 ImageIO *heightmapImage;
-
 // properties for OpenGL
 GLuint buffer;
 GLuint vao;
-
 const int pointMode = 0;
 const int lineMode = 1;
 const int triangleMode = 2;
-
 // set default mode as point mode
 int currMode = pointMode;
-
 OpenGLMatrix *matrix;
-
 GLfloat theta[3] = {0.0, 0.0, 0.0};
-
 BasicPipelineProgram *pipelineProgram;
-
 vector<float> pos;
 vector<float> uvs;
-
 // This constant will determine how much segements there will be between two points
 float USTEP = 0.001;
-
 int currentFrameNumber = 0;
 bool needAnimate = false;
-
 // variabels for hw2
 // represents one control point along the spline
 struct Point
@@ -107,7 +96,6 @@ struct Point
   double y;
   double z;
 };
-
 // spline struct
 // contains how many control points the spline has, and an array of control points
 struct Spline
@@ -115,15 +103,21 @@ struct Spline
   int numControlPoints;
   Point *points;
 };
-
 // the spline array
 Spline *splines;
 // total number of splines
 int numSplines;
-
 float s = 0.5;
-
 float basis[4][4] = {{-s, 2 - s, s - 2, s}, {2 * s, s - 3, 3 - 2 * s, -s}, {-s, 0, s, 0}, {0, 1, 0, 0}};
+// Variables for textures
+GLuint groundTextureHandle;
+// Variables for ground
+vector<float> groundPos;
+vector<float> groundUVs;
+GLuint groundBuffer;
+GLuint groundVao;
+
+GLuint program;
 
 int loadSplines(char *argv)
 {
@@ -323,7 +317,14 @@ void renderLines()
   glDrawArrays(GL_LINE_STRIP, first, numberOfVertices);
   glBindVertexArray(0);
 }
-
+void setTextureUnit(GLint unit)
+{
+  glActiveTexture(unit); // select the active texture unit
+  // get a handle to the “textureImage” shader variable
+  GLint h_textureImage = glGetUniformLocation(program, "textureImage");
+  // deem the shader variable “textureImage” to read from texture unit “unit”
+  glUniform1i(h_textureImage, unit - GL_TEXTURE0);
+}
 void displayFunc()
 {
   // render some stuff...
@@ -341,8 +342,17 @@ void displayFunc()
   matrix->Scale(landScale[0], landScale[1], landScale[2]);
   bindProgram();
   // change how the program render the vertices
+
+  setTextureUnit(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, groundTextureHandle);
   glBindVertexArray(vao);
   renderLines();
+  glBindVertexArray(groundVao);
+  GLint first = 0;
+  GLsizei numberOfVertices = groundPos.size() / 3;
+  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
+  glBindVertexArray(0);
+
   glutSwapBuffers();
 }
 
@@ -559,6 +569,15 @@ void initVBO()
   glBufferSubData(GL_ARRAY_BUFFER, 0, pos.size() * sizeof(float), pos.data());
   // upload color data
   glBufferSubData(GL_ARRAY_BUFFER, pos.size() * sizeof(float), uvs.size() * sizeof(float), uvs.data());
+
+  //vbo for grounds
+  glGenBuffers(1, &groundBuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, groundBuffer);
+  glBufferData(GL_ARRAY_BUFFER, (groundPos.size() + groundUVs.size()) * sizeof(float), NULL, GL_STATIC_DRAW);
+  // upload position data
+  glBufferSubData(GL_ARRAY_BUFFER, 0, groundPos.size() * sizeof(float), groundPos.data());
+  // upload color data
+  glBufferSubData(GL_ARRAY_BUFFER, groundPos.size() * sizeof(float), groundUVs.size() * sizeof(float), groundUVs.data());
 }
 
 // initialization for the pipeline (shaders, etc.)
@@ -566,14 +585,14 @@ void initPipelineProgram()
 {
   // initialize shader pipeline program
   pipelineProgram = new BasicPipelineProgram();
-  pipelineProgram->Init("../openGLHelper-starterCode");
+  pipelineProgram->Init("./shaders");
   pipelineProgram->Bind();
 }
 
 void initpointVAO()
 {
 
-  GLuint program = pipelineProgram->GetProgramHandle();
+  program = pipelineProgram->GetProgramHandle();
   GLsizei stride = 0;
   GLboolean normalized = GL_FALSE;
 
@@ -585,10 +604,23 @@ void initpointVAO()
   glEnableVertexAttribArray(loc);
   const void *offset = (const void *)0;
   glVertexAttribPointer(loc, 3, GL_FLOAT, normalized, stride, offset);
-  GLuint loc2 = glGetAttribLocation(program, "color");
+  GLuint loc2 = glGetAttribLocation(program, "texCoord");
   glEnableVertexAttribArray(loc2);
   offset = (const void *)(pos.size() * sizeof(float));
-  glVertexAttribPointer(loc2, 4, GL_FLOAT, normalized, stride, offset);
+  glVertexAttribPointer(loc2, 2, GL_FLOAT, normalized, stride, offset);
+  glBindVertexArray(0);
+
+  glGenVertexArrays(1, &groundVao);
+  glBindVertexArray(groundVao);
+  glBindBuffer(GL_ARRAY_BUFFER, groundBuffer);
+  loc = glGetAttribLocation(program, "position");
+  glEnableVertexAttribArray(loc);
+  offset = (const void *)0;
+  glVertexAttribPointer(loc, 3, GL_FLOAT, normalized, stride, offset);
+  loc2 = glGetAttribLocation(program, "texCoord");
+  glEnableVertexAttribArray(loc2);
+  offset = (const void *)(groundPos.size() * sizeof(float));
+  glVertexAttribPointer(loc2, 2, GL_FLOAT, normalized, stride, offset);
   glBindVertexArray(0);
 }
 
@@ -602,6 +634,17 @@ float calculateGradient(float fromVal, float toVal, float fraction)
   return fromVal + (toVal - fromVal) * fraction;
 }
 
+void initTextures()
+{
+  glGenTextures(1, &groundTextureHandle);
+  int code = initTexture("ground_texture_1024.jpg", groundTextureHandle);
+  if (code != 0)
+  {
+    printf("Error loading ground texture");
+    exit(EXIT_FAILURE);
+  }
+}
+
 void initScene(int argc, char *argv[])
 {
   // load the image from a jpeg disk file to main memory
@@ -611,6 +654,14 @@ void initScene(int argc, char *argv[])
   //   cout << "Error reading image " << argv[1] << "." << endl;
   //   exit(EXIT_FAILURE);
   // }
+  initTextures();
+  float minX = 9999999;
+  float maxX = -9999999;
+  float minY = 9999999;
+  float maxY = -9999999;
+  float minZ = 9999999;
+  float maxZ = -9999999;
+
   for (int i = 0; i < numSplines; i++)
   {
     int currPointLength = splines[i].numControlPoints;
@@ -624,13 +675,44 @@ void initScene(int argc, char *argv[])
         pos.push_back(currPoint.z);
         uvs.push_back(1.0);
         uvs.push_back(0.0);
-        uvs.push_back(0.0);
-        uvs.push_back(1.0);
+        if (currPoint.x > maxX)
+          maxX = currPoint.x;
+        if (currPoint.x < minX)
+          minX = currPoint.x;
+        if (currPoint.y > maxY)
+          maxY = currPoint.y;
+        if (currPoint.y < minY)
+          minY = currPoint.y;
+        if (currPoint.z > maxZ)
+          maxZ = currPoint.z;
+        if (currPoint.z < minZ)
+          minZ = currPoint.z;
       }
     }
   }
+  // initialize ground
+  cout << minX << minY << minZ << endl;
+  cout << maxX << maxY << maxZ << endl;
+  groundPos.push_back(0);
+  groundPos.push_back(0);
+  groundPos.push_back(0);
 
-  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  groundPos.push_back(0);
+  groundPos.push_back(0);
+  groundPos.push_back(100);
+
+  groundPos.push_back(100);
+  groundPos.push_back(0);
+  groundPos.push_back(0);
+
+  groundUVs.push_back(0.0);
+  groundUVs.push_back(0.0);
+  groundUVs.push_back(0.2);
+  groundUVs.push_back(0.2);
+  groundUVs.push_back(0.2);
+  groundUVs.push_back(0.0);
+
+  glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
   // do additional initialization here...
   glEnable(GL_DEPTH_TEST);
   matrix = new OpenGLMatrix();
