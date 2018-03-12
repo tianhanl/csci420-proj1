@@ -111,6 +111,8 @@ float s = 0.5;
 float basis[4][4] = {{-s, 2 - s, s - 2, s}, {2 * s, s - 3, 3 - 2 * s, -s}, {-s, 0, s, 0}, {0, 1, 0, 0}};
 // Variables for textures
 GLuint groundTextureHandle;
+GLuint skyTextureHandle;
+GLuint metalTextureHandle;
 // Variables for ground
 vector<float> groundPos;
 vector<float> groundUVs;
@@ -310,13 +312,6 @@ void bindProgram()
   pipelineProgram->Bind();
 }
 
-void renderLines()
-{
-  GLint first = 0;
-  GLsizei numberOfVertices = pos.size() / 3;
-  glDrawArrays(GL_LINE_STRIP, first, numberOfVertices);
-  glBindVertexArray(0);
-}
 void setTextureUnit(GLint unit)
 {
   glActiveTexture(unit); // select the active texture unit
@@ -324,6 +319,27 @@ void setTextureUnit(GLint unit)
   GLint h_textureImage = glGetUniformLocation(program, "textureImage");
   // deem the shader variable “textureImage” to read from texture unit “unit”
   glUniform1i(h_textureImage, unit - GL_TEXTURE0);
+}
+
+void renderSplines()
+{
+  setTextureUnit(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, metalTextureHandle);
+  glBindVertexArray(vao);
+  GLint first = 0;
+  GLsizei numberOfVertices = pos.size() / 3;
+  glDrawArrays(GL_LINE_STRIP, first, numberOfVertices);
+  glBindVertexArray(0);
+}
+void renderGround()
+{
+  glBindVertexArray(groundVao);
+  setTextureUnit(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, groundTextureHandle);
+  GLint first = 0;
+  GLsizei numberOfVertices = groundPos.size() / 3;
+  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
+  glBindVertexArray(0);
 }
 void displayFunc()
 {
@@ -343,15 +359,9 @@ void displayFunc()
   bindProgram();
   // change how the program render the vertices
 
-  setTextureUnit(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, groundTextureHandle);
-  glBindVertexArray(vao);
-  renderLines();
-  glBindVertexArray(groundVao);
-  GLint first = 0;
-  GLsizei numberOfVertices = groundPos.size() / 3;
-  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
-  glBindVertexArray(0);
+  renderSplines();
+
+  renderGround();
 
   glutSwapBuffers();
 }
@@ -636,8 +646,25 @@ float calculateGradient(float fromVal, float toVal, float fraction)
 
 void initTextures()
 {
+  // load ground texture
   glGenTextures(1, &groundTextureHandle);
   int code = initTexture("ground_texture_1024.jpg", groundTextureHandle);
+  if (code != 0)
+  {
+    printf("Error loading ground texture");
+    exit(EXIT_FAILURE);
+  }
+  // load sky texture
+  glGenTextures(1, &skyTextureHandle);
+  code = initTexture("./sky_texture_1024.jpg", skyTextureHandle);
+  if (code != 0)
+  {
+    printf("Error loading ground texture");
+    exit(EXIT_FAILURE);
+  }
+  // load metal texture
+  glGenTextures(1, &metalTextureHandle);
+  code = initTexture("./metal_texture_1024.jpg", metalTextureHandle);
   if (code != 0)
   {
     printf("Error loading ground texture");
