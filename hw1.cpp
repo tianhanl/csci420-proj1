@@ -210,7 +210,7 @@ Point normalizedCrossProduct(Point p1, Point p2)
 {
   Point output;
   output.x = p1.y * p2.z - p1.z * p2.y;
-  output.y = p1.x * p2.z - p1.z * p2.x;
+  output.y = p1.z * p2.x - p1.x * p2.z;
   output.z = p1.x * p2.y - p1.y * p2.x;
   return normalize(output);
 }
@@ -230,7 +230,7 @@ Point calculateSpline(float u, Point controlPoint1, Point controlPoint2, Point c
   output.y = indexes[0] * middleMatrix[0][1] + indexes[1] * middleMatrix[1][1] + indexes[2] * middleMatrix[2][1] + indexes[3] * middleMatrix[3][1];
   output.z = indexes[0] * middleMatrix[0][2] + indexes[1] * middleMatrix[1][2] + indexes[2] * middleMatrix[2][2] + indexes[3] * middleMatrix[3][2];
   indexes[0] = 3 * pow(u, 2.0);
-  indexes[1] = pow(u, 2.0);
+  indexes[1] = u;
   indexes[2] = 1;
   indexes[3] = 0;
   Point tangentPoint;
@@ -608,7 +608,7 @@ void keyboardFunc(unsigned char key, int x, int y)
     currMode = triangleMode;
     break;
   case 'a':
-    needAnimate = true;
+    needAnimate = !needAnimate;
     break;
   }
 }
@@ -782,9 +782,9 @@ void initScene(int argc, char *argv[])
   cout << "pos size: " << pos.size() << endl;
   cout << "tangent size: " << tangents.size() << endl;
   Point v;
-  v.x = 0;
-  v.y = 1;
-  v.z = 0;
+  v.x = tangents[0].x + 1;
+  v.y = tangents[0].y;
+  v.z = tangents[0].z;
   normals.push_back(normalizedCrossProduct(tangents[0], v));
   binomials.push_back(normalizedCrossProduct(tangents[0], normals[0]));
   for (int i = 1; i < tangents.size(); i++)
