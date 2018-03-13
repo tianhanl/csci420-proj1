@@ -133,6 +133,10 @@ float maxY = -9999999;
 float minZ = 9999999;
 float maxZ = -9999999;
 
+// used for moving camera
+int renderCount = 0;
+int speed = 50;
+
 int loadSplines(char *argv)
 {
   char *cName = (char *)malloc(128 * sizeof(char));
@@ -370,9 +374,13 @@ void displayFunc()
   // clear -> action -> draw -> swap (buffer)
   glClear(GL_COLOR_BUFFER_BIT |
           GL_DEPTH_BUFFER_BIT);
+
+  int currPos = 3 * (renderCount * speed);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  matrix->LookAt((maxX + minX) / 2, minY + 1, minZ, 0, 0, maxZ + 20, 0, 1, 0);
+  matrix->LookAt(pos[currPos], pos[currPos + 1], pos[currPos + 2],
+                 pos[currPos + speed * 3], pos[currPos + speed * 3 + 1], pos[currPos + speed * 3 + 2],
+                 0, 1, 0);
   matrix->Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
   matrix->Rotate(landRotate[0], 1.0, 0.0, 0.0);
   matrix->Rotate(landRotate[1], 0.0, 1.0, 0.0);
@@ -392,30 +400,13 @@ void displayFunc()
 
 void animate()
 {
-  int step = 1;
-  landRotate[0] += step * 3;
-  // landRotate[1] += step;
-  // landRotate[2] += step * 5;
-  // landScale[0] *= 1.0f + step * 0.01f;
-  landScale[1] *= 1.0f - step * 0.01f;
-  // landScale[2] *= 1.0f - step * 0.01f;
-  // landTranslate[0] += step * 0.01f;
-  // landTranslate[1] -= step * 0.01f;
-  if (currentFrameNumber == 100)
-  {
-    currMode = lineMode;
-  }
-  else if (currentFrameNumber == 200)
-  {
-    currMode = triangleMode;
-  }
-  stringstream filename;
-  filename << "frame_" << currentFrameNumber << ".jpg";
-  saveScreenshot(filename.str().c_str());
-  currentFrameNumber++;
-  if (currentFrameNumber > 300)
+  if (3 * (renderCount + 1) * speed + 3 * speed + 6 > (int)pos.size())
   {
     needAnimate = false;
+  }
+  else
+  {
+    renderCount = renderCount + 1;
   }
 }
 
@@ -757,6 +748,7 @@ void initScene(int argc, char *argv[])
       }
     }
   }
+  cout << "pos size: " << pos.size() << endl;
   float padding = maxX - minX;
   minZ -= padding;
   maxZ += padding;
