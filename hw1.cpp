@@ -135,7 +135,10 @@ float maxZ = -9999999;
 
 // used for moving camera
 int renderCount = 0;
-int speed = 50;
+int speed = 15;
+vector<Point> tangents;
+vector<Point> normals;
+vector<Point> binomials;
 
 int loadSplines(char *argv)
 {
@@ -193,6 +196,25 @@ int loadSplines(char *argv)
   return 0;
 }
 
+Point normalize(Point p)
+{
+  Point output;
+  float length = sqrt(pow(p.x, 2) + pow(p.y, 2) + pow(p.z, 2));
+  output.x = p.x / length;
+  output.y = p.y / length;
+  output.z = p.z / length;
+  return output;
+}
+
+Point normalizedCrossProduct(Point p1, Point p2)
+{
+  Point output;
+  output.x = p1.y * p2.z - p1.z * p2.y;
+  output.y = p1.x * p2.z - p1.z * p2.x;
+  output.z = p1.x * p2.y - p1.y * p2.x;
+  return normalize(output);
+}
+
 Point calculateSpline(float u, Point controlPoint1, Point controlPoint2, Point controlPoint3, Point controlPoint4)
 {
   Point output;
@@ -207,6 +229,15 @@ Point calculateSpline(float u, Point controlPoint1, Point controlPoint2, Point c
   output.x = indexes[0] * middleMatrix[0][0] + indexes[1] * middleMatrix[1][0] + indexes[2] * middleMatrix[2][0] + indexes[3] * middleMatrix[3][0];
   output.y = indexes[0] * middleMatrix[0][1] + indexes[1] * middleMatrix[1][1] + indexes[2] * middleMatrix[2][1] + indexes[3] * middleMatrix[3][1];
   output.z = indexes[0] * middleMatrix[0][2] + indexes[1] * middleMatrix[1][2] + indexes[2] * middleMatrix[2][2] + indexes[3] * middleMatrix[3][2];
+  indexes[0] = 3 * pow(u, 2.0);
+  indexes[1] = pow(u, 2.0);
+  indexes[2] = 1;
+  indexes[3] = 0;
+  Point tangentPoint;
+  tangentPoint.x = indexes[0] * middleMatrix[0][0] + indexes[1] * middleMatrix[1][0] + indexes[2] * middleMatrix[2][0] + indexes[3] * middleMatrix[3][0];
+  tangentPoint.y = indexes[0] * middleMatrix[0][1] + indexes[1] * middleMatrix[1][1] + indexes[2] * middleMatrix[2][1] + indexes[3] * middleMatrix[3][1];
+  tangentPoint.z = indexes[0] * middleMatrix[0][2] + indexes[1] * middleMatrix[1][2] + indexes[2] * middleMatrix[2][2] + indexes[3] * middleMatrix[3][2];
+  tangents.push_back(normalize(tangentPoint));
   return output;
 }
 
@@ -375,12 +406,12 @@ void displayFunc()
   glClear(GL_COLOR_BUFFER_BIT |
           GL_DEPTH_BUFFER_BIT);
 
-  int currPos = 3 * (renderCount * speed);
+  int currPos = 3 * renderCount * speed;
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
   matrix->LookAt(pos[currPos], pos[currPos + 1], pos[currPos + 2],
-                 pos[currPos + speed * 3], pos[currPos + speed * 3 + 1], pos[currPos + speed * 3 + 2],
-                 0, 1, 0);
+                 pos[currPos] + tangents[currPos / 3].x, pos[currPos + 1] + tangents[currPos / 3].y, pos[currPos + 2] + tangents[currPos / 3].z,
+                 normals[currPos / 3].x, normals[currPos / 3].y, normals[currPos / 3].z);
   matrix->Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
   matrix->Rotate(landRotate[0], 1.0, 0.0, 0.0);
   matrix->Rotate(landRotate[1], 0.0, 1.0, 0.0);
@@ -400,7 +431,7 @@ void displayFunc()
 
 void animate()
 {
-  if (3 * (renderCount + 1) * speed + 3 * speed + 6 > (int)pos.size())
+  if ((3 * renderCount * speed) + 100 >= (int)pos.size())
   {
     needAnimate = false;
   }
@@ -749,12 +780,25 @@ void initScene(int argc, char *argv[])
     }
   }
   cout << "pos size: " << pos.size() << endl;
+  cout << "tangent size: " << tangents.size() << endl;
+  Point v;
+  v.x = 0;
+  v.y = 1;
+  v.z = 0;
+  normals.push_back(normalizedCrossProduct(tangents[0], v));
+  binomials.push_back(normalizedCrossProduct(tangents[0], normals[0]));
+  for (int i = 1; i < tangents.size(); i++)
+  {
+    normals.push_back(normalizedCrossProduct(binomials[i - 1], tangents[i]));
+    binomials.push_back(normalizedCrossProduct(tangents[i], normals[i]));
+  }
   float padding = maxX - minX;
   minZ -= padding;
   maxZ += padding;
   maxX += padding;
   minX -= padding;
   maxY += padding;
+  minY -= 1;
 
   // no padding for miny since ground has to touch bottom of splines
   // initialize ground
