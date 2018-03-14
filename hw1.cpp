@@ -78,12 +78,13 @@ const int pointMode = 0;
 const int lineMode = 1;
 const int triangleMode = 2;
 // set default mode as point mode
-int currMode = pointMode;
+int currMode = triangleMode;
 OpenGLMatrix *matrix;
 GLfloat theta[3] = {0.0, 0.0, 0.0};
 BasicPipelineProgram *pipelineProgram;
 vector<float> pos;
 vector<float> uvs;
+vector<float> originalPos;
 // This constant will determine how much segements there will be between two points
 float USTEP = 0.001;
 int currentFrameNumber = 0;
@@ -133,7 +134,7 @@ float maxY = -9999999;
 float minZ = 9999999;
 float maxZ = -9999999;
 
-// used for moving camera
+// used for moving camerad
 int renderCount = 0;
 int speed = 15;
 vector<Point> tangents;
@@ -213,6 +214,33 @@ Point normalizedCrossProduct(Point p1, Point p2)
   output.y = p1.z * p2.x - p1.x * p2.z;
   output.z = p1.x * p2.y - p1.y * p2.x;
   return normalize(output);
+}
+
+Point scalarMultiplication(Point p, float num)
+{
+  Point output;
+  output.x = p.x * num;
+  output.y = p.y * num;
+  output.z = p.z * num;
+  return output;
+}
+
+Point addTwoPoint(Point pointA, Point pointB)
+{
+  Point output;
+  output.x = pointA.x + pointB.x;
+  output.y = pointA.y + pointB.y;
+  output.z = pointA.z + pointB.z;
+  return output;
+}
+
+Point reverse(Point p, Point origin)
+{
+  Point output;
+  output.x = origin.x - p.x;
+  output.y = origin.y - p.y;
+  output.z = origin.z - p.z;
+  return output;
 }
 
 Point calculateSpline(float u, Point controlPoint1, Point controlPoint2, Point controlPoint3, Point controlPoint4)
@@ -375,7 +403,15 @@ void renderSplines()
   glBindVertexArray(vao);
   GLint first = 0;
   GLsizei numberOfVertices = pos.size() / 3;
-  glDrawArrays(GL_LINE_STRIP, first, numberOfVertices);
+  if (currMode == triangleMode)
+  {
+    glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
+  }
+  else
+  {
+    glDrawArrays(GL_LINE_STRIP, first, numberOfVertices);
+  }
+
   glBindVertexArray(0);
 }
 void renderGround()
@@ -409,8 +445,8 @@ void displayFunc()
   int currPos = 3 * renderCount * speed;
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  matrix->LookAt(pos[currPos], pos[currPos + 1], pos[currPos + 2],
-                 pos[currPos] + tangents[currPos / 3].x, pos[currPos + 1] + tangents[currPos / 3].y, pos[currPos + 2] + tangents[currPos / 3].z,
+  matrix->LookAt(originalPos[currPos], originalPos[currPos + 1], originalPos[currPos + 2],
+                 originalPos[currPos] + tangents[currPos / 3].x, originalPos[currPos + 1] + tangents[currPos / 3].y, originalPos[currPos + 2] + tangents[currPos / 3].z,
                  normals[currPos / 3].x, normals[currPos / 3].y, normals[currPos / 3].z);
   matrix->Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
   matrix->Rotate(landRotate[0], 1.0, 0.0, 0.0);
@@ -431,7 +467,7 @@ void displayFunc()
 
 void animate()
 {
-  if ((3 * renderCount * speed) + 100 >= (int)pos.size())
+  if ((3 * renderCount * speed) + 100 >= (int)originalPos.size())
   {
     needAnimate = false;
   }
@@ -609,6 +645,8 @@ void keyboardFunc(unsigned char key, int x, int y)
     break;
   case 'a':
     needAnimate = !needAnimate;
+    if (renderCount > originalPos.size() - 100)
+      renderCount = 0;
     break;
   }
 }
@@ -740,6 +778,241 @@ void initTextures()
   }
 }
 
+void addCube(Point v0, Point v1, Point v2, Point v3, Point v4,
+             Point v5, Point v6, Point v7, vector<float> &targetPos, vector<float> &targetUvs)
+{
+  // no padding for miny since ground has to touch bottom of splines
+  // initialize ground
+  // frontBottomLeft
+  targetPos.push_back(v3.x);
+  targetPos.push_back(v3.y);
+  targetPos.push_back(v3.z);
+  // fontBottomRight
+  targetPos.push_back(v0.x);
+  targetPos.push_back(v0.y);
+  targetPos.push_back(v0.z);
+  // backBottomRight;
+  targetPos.push_back(v4.x);
+  targetPos.push_back(v4.y);
+  targetPos.push_back(v4.z);
+  // fontBottomLeft
+  targetPos.push_back(v3.x);
+  targetPos.push_back(v3.y);
+  targetPos.push_back(v3.z);
+  // backBottomLeft
+  targetPos.push_back(v7.x);
+  targetPos.push_back(v7.y);
+  targetPos.push_back(v7.z);
+  // backBottomRight
+  targetPos.push_back(v4.x);
+  targetPos.push_back(v4.y);
+  targetPos.push_back(v4.z);
+
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+  // front
+  // frontBottomLeft
+  targetPos.push_back(v3.x);
+  targetPos.push_back(v3.y);
+  targetPos.push_back(v3.z);
+  // fontBottomRight
+  targetPos.push_back(v0.x);
+  targetPos.push_back(v0.y);
+  targetPos.push_back(v0.z);
+  // frontTopRight;
+  targetPos.push_back(v1.x);
+  targetPos.push_back(v1.y);
+  targetPos.push_back(v1.z);
+  // frontBottomLeft
+  targetPos.push_back(v3.x);
+  targetPos.push_back(v3.y);
+  targetPos.push_back(v3.z);
+  // frontTopLeft
+  targetPos.push_back(v2.x);
+  targetPos.push_back(v2.y);
+  targetPos.push_back(v2.z);
+  // frontTopRight
+  targetPos.push_back(v1.x);
+  targetPos.push_back(v1.y);
+  targetPos.push_back(v1.z);
+
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+  // left
+  // backBottomLeft
+  targetPos.push_back(v7.x);
+  targetPos.push_back(v7.y);
+  targetPos.push_back(v7.z);
+  // frontBottomLeft
+  targetPos.push_back(v3.x);
+  targetPos.push_back(v3.y);
+  targetPos.push_back(v3.z);
+  // frontTopLeft
+  targetPos.push_back(v2.x);
+  targetPos.push_back(v2.y);
+  targetPos.push_back(v2.z);
+  // backBottomLeft
+  targetPos.push_back(v7.x);
+  targetPos.push_back(v7.y);
+  targetPos.push_back(v7.z);
+  // backTopLeft
+  targetPos.push_back(v6.x);
+  targetPos.push_back(v6.y);
+  targetPos.push_back(v6.z);
+  // frontTopLeft
+  targetPos.push_back(v2.x);
+  targetPos.push_back(v2.y);
+  targetPos.push_back(v2.z);
+
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+  // right
+  // backBottomRight
+  targetPos.push_back(v4.x);
+  targetPos.push_back(v4.y);
+  targetPos.push_back(v4.z);
+  // fontBottomRight
+  targetPos.push_back(v0.x);
+  targetPos.push_back(v0.y);
+  targetPos.push_back(v0.z);
+  // frontTopRight;
+  targetPos.push_back(v1.x);
+  targetPos.push_back(v1.y);
+  targetPos.push_back(v1.z);
+  // backBottomRight
+  targetPos.push_back(v4.x);
+  targetPos.push_back(v4.y);
+  targetPos.push_back(v4.z);
+  // backTopRight;
+  targetPos.push_back(v5.x);
+  targetPos.push_back(v5.y);
+  targetPos.push_back(v5.z);
+  // frontTopRight;
+  targetPos.push_back(v1.x);
+  targetPos.push_back(v1.y);
+  targetPos.push_back(v1.z);
+
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+
+  // top
+  // frontTopLeft
+  targetPos.push_back(v2.x);
+  targetPos.push_back(v2.y);
+  targetPos.push_back(v2.z);
+  // frontTopRight
+  targetPos.push_back(v1.x);
+  targetPos.push_back(v1.y);
+  targetPos.push_back(v1.z);
+  // backTopRight;
+  targetPos.push_back(v5.x);
+  targetPos.push_back(v5.y);
+  targetPos.push_back(v5.z);
+  // frontTopLeft
+  targetPos.push_back(v2.x);
+  targetPos.push_back(v2.y);
+  targetPos.push_back(v2.z);
+  // backTopLeft
+  targetPos.push_back(v6.x);
+  targetPos.push_back(v6.y);
+  targetPos.push_back(v6.z);
+  // backTopRight;
+  targetPos.push_back(v5.x);
+  targetPos.push_back(v5.y);
+  targetPos.push_back(v5.z);
+
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+  // back
+  // backBottomLeft
+  targetPos.push_back(v7.x);
+  targetPos.push_back(v7.y);
+  targetPos.push_back(v7.z);
+  // backBottomRight
+  targetPos.push_back(v4.x);
+  targetPos.push_back(v4.y);
+  targetPos.push_back(v4.z);
+  // backTopRight;
+  targetPos.push_back(v5.x);
+  targetPos.push_back(v5.y);
+  targetPos.push_back(v5.z);
+  // backBottomLeft
+  targetPos.push_back(v7.x);
+  targetPos.push_back(v7.y);
+  targetPos.push_back(v7.z);
+  // backTopLeft
+  targetPos.push_back(v6.x);
+  targetPos.push_back(v6.y);
+  targetPos.push_back(v6.z);
+  // backTopRight;
+  targetPos.push_back(v5.x);
+  targetPos.push_back(v5.y);
+  targetPos.push_back(v5.z);
+
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1.0);
+  targetUvs.push_back(0.0);
+  targetUvs.push_back(1);
+  targetUvs.push_back(1);
+  targetUvs.push_back(0);
+  targetUvs.push_back(1);
+}
+
 void initScene(int argc, char *argv[])
 {
   // load the image from a jpeg disk file to main memory
@@ -799,7 +1072,6 @@ void initScene(int argc, char *argv[])
   minX -= padding;
   maxY += padding;
   minY -= 1;
-
   // no padding for miny since ground has to touch bottom of splines
   // initialize ground
   // frontBottomLeft
@@ -1030,6 +1302,38 @@ void initScene(int argc, char *argv[])
   skyUVs.push_back(1);
   skyUVs.push_back(0);
   skyUVs.push_back(1);
+
+  // add cube for level5
+  int originalSize = pos.size();
+  vector<float> newPos;
+  vector<float> newUvs;
+  for (int i = 0; i < originalSize - 6; i += 3)
+  {
+    Point p0;
+    p0.x = pos[i];
+    p0.y = pos[i + 1];
+    p0.z = pos[i + 2];
+    Point p1;
+    p1.x = pos[i + 3];
+    p1.y = pos[i + 4];
+    p1.z = pos[i + 5];
+    int currIndex = i / 3;
+    float factor = 0.05;
+    addCube(
+        addTwoPoint(p0, scalarMultiplication(addTwoPoint(reverse(tangents[currIndex], p0), binomials[currIndex]), factor)),
+        addTwoPoint(p0, scalarMultiplication(addTwoPoint(tangents[currIndex], binomials[currIndex]), factor)),
+        addTwoPoint(p0, scalarMultiplication(addTwoPoint(tangents[currIndex], reverse(binomials[currIndex], p0)), factor)),
+        addTwoPoint(p0, scalarMultiplication(addTwoPoint(reverse(tangents[currIndex], p0), reverse(binomials[currIndex], p0)), factor)),
+        addTwoPoint(p1, scalarMultiplication(addTwoPoint(reverse(tangents[currIndex + 1], p1), binomials[currIndex + 1]), factor)),
+        addTwoPoint(p1, scalarMultiplication(addTwoPoint(tangents[currIndex + 1], binomials[currIndex + 1]), factor)),
+        addTwoPoint(p1, scalarMultiplication(addTwoPoint(tangents[currIndex + 1], reverse(binomials[currIndex + 1], p1)), factor)),
+        addTwoPoint(p1, scalarMultiplication(addTwoPoint(reverse(tangents[currIndex + 1], p1), reverse(binomials[currIndex + 1], p1)), factor)),
+        newPos,
+        newUvs);
+  }
+  originalPos = pos;
+  pos = newPos;
+  uvs = newUvs;
 
   glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
   // do additional initialization here...
