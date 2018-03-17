@@ -234,12 +234,12 @@ Point addTwoPoint(Point pointA, Point pointB)
   return output;
 }
 
-Point reverse(Point p, Point origin)
+Point reverse(Point p)
 {
   Point output;
-  output.x = origin.x - p.x;
-  output.y = origin.y - p.y;
-  output.z = origin.z - p.z;
+  output.x = -p.x;
+  output.y = -p.y;
+  output.z = -p.z;
   return output;
 }
 
@@ -253,12 +253,12 @@ Point calculateSpline(float u, Point controlPoint1, Point controlPoint2, Point c
     middleMatrix[i][1] = basis[i][0] * controlPoint1.y + basis[i][1] * controlPoint2.y + basis[i][2] * controlPoint3.y + basis[i][3] * controlPoint4.y;
     middleMatrix[i][2] = basis[i][0] * controlPoint1.z + basis[i][1] * controlPoint2.z + basis[i][2] * controlPoint3.z + basis[i][3] * controlPoint4.z;
   }
-  float indexes[4] = {pow(u, 3.0), pow(u, 2.0), pow(u, 1.0), 1};
+  float indexes[4] = {pow(u, 3.0), pow(u, 2.0), u, 1};
   output.x = indexes[0] * middleMatrix[0][0] + indexes[1] * middleMatrix[1][0] + indexes[2] * middleMatrix[2][0] + indexes[3] * middleMatrix[3][0];
   output.y = indexes[0] * middleMatrix[0][1] + indexes[1] * middleMatrix[1][1] + indexes[2] * middleMatrix[2][1] + indexes[3] * middleMatrix[3][1];
   output.z = indexes[0] * middleMatrix[0][2] + indexes[1] * middleMatrix[1][2] + indexes[2] * middleMatrix[2][2] + indexes[3] * middleMatrix[3][2];
   indexes[0] = 3 * pow(u, 2.0);
-  indexes[1] = u;
+  indexes[1] = 2u;
   indexes[2] = 1;
   indexes[3] = 0;
   Point tangentPoint;
@@ -441,11 +441,11 @@ void displayFunc()
   // clear -> action -> draw -> swap (buffer)
   glClear(GL_COLOR_BUFFER_BIT |
           GL_DEPTH_BUFFER_BIT);
-
+  float factor = 0.1;
   int currPos = 3 * renderCount * speed;
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
-  matrix->LookAt(originalPos[currPos], originalPos[currPos + 1], originalPos[currPos + 2],
+  matrix->LookAt(factor * normals[currPos / 3].x + originalPos[currPos], factor * normals[currPos / 3].y + originalPos[currPos + 1], factor * normals[currPos / 3].z + originalPos[currPos + 2],
                  originalPos[currPos] + tangents[currPos / 3].x, originalPos[currPos + 1] + tangents[currPos / 3].y, originalPos[currPos + 2] + tangents[currPos / 3].z,
                  normals[currPos / 3].x, normals[currPos / 3].y, normals[currPos / 3].z);
   matrix->Translate(landTranslate[0], landTranslate[1], landTranslate[2]);
@@ -1054,17 +1054,6 @@ void initScene(int argc, char *argv[])
   }
   cout << "pos size: " << pos.size() << endl;
   cout << "tangent size: " << tangents.size() << endl;
-  Point v;
-  v.x = tangents[0].x + 1;
-  v.y = tangents[0].y;
-  v.z = tangents[0].z;
-  normals.push_back(normalizedCrossProduct(tangents[0], v));
-  binomials.push_back(normalizedCrossProduct(tangents[0], normals[0]));
-  for (int i = 1; i < tangents.size(); i++)
-  {
-    normals.push_back(normalizedCrossProduct(binomials[i - 1], tangents[i]));
-    binomials.push_back(normalizedCrossProduct(tangents[i], normals[i]));
-  }
   float padding = maxX - minX;
   minZ -= padding;
   maxZ += padding;
@@ -1072,6 +1061,18 @@ void initScene(int argc, char *argv[])
   minX -= padding;
   maxY += padding;
   minY -= 1;
+  Point v;
+  v.x = tangents[0].x + padding;
+  v.y = tangents[0].y + padding;
+  v.z = tangents[0].z + padding;
+  normals.push_back(normalizedCrossProduct(tangents[0], normalize(v)));
+  binomials.push_back(normalizedCrossProduct(tangents[0], normals[0]));
+  for (int i = 1; i < tangents.size(); i++)
+  {
+    normals.push_back(normalizedCrossProduct(binomials[i - 1], tangents[i]));
+    binomials.push_back(normalizedCrossProduct(tangents[i], normals[i]));
+  }
+
   // no padding for miny since ground has to touch bottom of splines
   // initialize ground
   // frontBottomLeft
@@ -1307,7 +1308,10 @@ void initScene(int argc, char *argv[])
   int originalSize = pos.size();
   vector<float> newPos;
   vector<float> newUvs;
-  for (int i = 0; i < originalSize - 6; i += 3)
+  Point sampleNormal = normals[0];
+  cout << "sampleNormal" << sampleNormal.x << " " << sampleNormal.y << " " << sampleNormal.z << endl;
+  cout << "samplePoint" << pos[0] << " " << pos[1] << " " << pos[2];
+  for (int i = 0; i < originalSize - 3; i += 3)
   {
     Point p0;
     p0.x = pos[i];
@@ -1320,14 +1324,22 @@ void initScene(int argc, char *argv[])
     int currIndex = i / 3;
     float factor = 0.05;
     addCube(
-        addTwoPoint(p0, scalarMultiplication(addTwoPoint(reverse(tangents[currIndex], p0), binomials[currIndex]), factor)),
-        addTwoPoint(p0, scalarMultiplication(addTwoPoint(tangents[currIndex], binomials[currIndex]), factor)),
-        addTwoPoint(p0, scalarMultiplication(addTwoPoint(tangents[currIndex], reverse(binomials[currIndex], p0)), factor)),
-        addTwoPoint(p0, scalarMultiplication(addTwoPoint(reverse(tangents[currIndex], p0), reverse(binomials[currIndex], p0)), factor)),
-        addTwoPoint(p1, scalarMultiplication(addTwoPoint(reverse(tangents[currIndex + 1], p1), binomials[currIndex + 1]), factor)),
-        addTwoPoint(p1, scalarMultiplication(addTwoPoint(tangents[currIndex + 1], binomials[currIndex + 1]), factor)),
-        addTwoPoint(p1, scalarMultiplication(addTwoPoint(tangents[currIndex + 1], reverse(binomials[currIndex + 1], p1)), factor)),
-        addTwoPoint(p1, scalarMultiplication(addTwoPoint(reverse(tangents[currIndex + 1], p1), reverse(binomials[currIndex + 1], p1)), factor)),
+        // v0
+        addTwoPoint(p0, scalarMultiplication(addTwoPoint(reverse(normals[currIndex]), binomials[currIndex]), factor)),
+        // v1
+        addTwoPoint(p0, scalarMultiplication(addTwoPoint(normals[currIndex], binomials[currIndex]), factor)),
+        // v2
+        addTwoPoint(p0, scalarMultiplication(addTwoPoint(normals[currIndex], reverse(binomials[currIndex])), factor)),
+        // v3
+        addTwoPoint(p0, scalarMultiplication(addTwoPoint(reverse(normals[currIndex]), reverse(binomials[currIndex])), factor)),
+        // v4
+        addTwoPoint(p1, scalarMultiplication(addTwoPoint(reverse(normals[currIndex + 1]), binomials[currIndex + 1]), factor)),
+        // v5
+        addTwoPoint(p1, scalarMultiplication(addTwoPoint(normals[currIndex + 1], binomials[currIndex + 1]), factor)),
+        // v6
+        addTwoPoint(p1, scalarMultiplication(addTwoPoint(normals[currIndex + 1], reverse(binomials[currIndex + 1])), factor)),
+        // v7
+        addTwoPoint(p1, scalarMultiplication(addTwoPoint(reverse(normals[currIndex + 1]), reverse(binomials[currIndex + 1])), factor)),
         newPos,
         newUvs);
   }
