@@ -258,7 +258,7 @@ Point calculateSpline(float u, Point controlPoint1, Point controlPoint2, Point c
   output.y = indexes[0] * middleMatrix[0][1] + indexes[1] * middleMatrix[1][1] + indexes[2] * middleMatrix[2][1] + indexes[3] * middleMatrix[3][1];
   output.z = indexes[0] * middleMatrix[0][2] + indexes[1] * middleMatrix[1][2] + indexes[2] * middleMatrix[2][2] + indexes[3] * middleMatrix[3][2];
   indexes[0] = 3 * pow(u, 2.0);
-  indexes[1] = 2u;
+  indexes[1] = 2 * u;
   indexes[2] = 1;
   indexes[3] = 0;
   Point tangentPoint;
