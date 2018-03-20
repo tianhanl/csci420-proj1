@@ -262,6 +262,7 @@ Point calculateSpline(float u, Point controlPoint1, Point controlPoint2, Point c
   indexes[1] = 2 * u;
   indexes[2] = 1;
   indexes[3] = 0;
+  // calculate tangent
   Point tangentPoint;
   tangentPoint.x = indexes[0] * middleMatrix[0][0] + indexes[1] * middleMatrix[1][0] + indexes[2] * middleMatrix[2][0] + indexes[3] * middleMatrix[3][0];
   tangentPoint.y = indexes[0] * middleMatrix[0][1] + indexes[1] * middleMatrix[1][1] + indexes[2] * middleMatrix[2][1] + indexes[3] * middleMatrix[3][1];
@@ -404,14 +405,7 @@ void renderSplines()
   glBindVertexArray(vao);
   GLint first = 0;
   GLsizei numberOfVertices = pos.size() / 3;
-  if (currMode == triangleMode)
-  {
-    glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
-  }
-  else
-  {
-    glDrawArrays(GL_LINE_STRIP, first, numberOfVertices);
-  }
+  glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
 
   glBindVertexArray(0);
 }
@@ -437,7 +431,7 @@ void renderSky()
 }
 void animate()
 {
-
+  // change position by stimulating the effect of gravity
   currPos += 3 * speed * floor(0.7 * sqrt(2 * 9.8 * (maxY - originalPos[currPos + 1])) / sqrt(pow(tangents[currPos / 3].x, 2) + pow(tangents[currPos / 3].y, 2) + pow(tangents[currPos / 3].z, 2)));
 
   if (currPos >= (int)originalPos.size())
