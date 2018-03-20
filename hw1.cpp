@@ -136,10 +136,11 @@ float maxZ = -9999999;
 
 // used for moving camerad
 int renderCount = 0;
-int speed = 15;
+int speed = 1;
 vector<Point> tangents;
 vector<Point> normals;
 vector<Point> binomials;
+int currPos = 0;
 
 int loadSplines(char *argv)
 {
@@ -434,6 +435,17 @@ void renderSky()
   glDrawArrays(GL_TRIANGLES, first, numberOfVertices);
   glBindVertexArray(0);
 }
+void animate()
+{
+
+  currPos += 3 * speed * floor(0.7 * sqrt(2 * 9.8 * (maxY - originalPos[currPos + 1])) / sqrt(pow(tangents[currPos / 3].x, 2) + pow(tangents[currPos / 3].y, 2) + pow(tangents[currPos / 3].z, 2)));
+
+  if (currPos >= (int)originalPos.size())
+  {
+    needAnimate = false;
+    currPos = 0;
+  }
+}
 void displayFunc()
 {
   // render some stuff...
@@ -442,7 +454,6 @@ void displayFunc()
   glClear(GL_COLOR_BUFFER_BIT |
           GL_DEPTH_BUFFER_BIT);
   float factor = 0.1;
-  int currPos = 3 * renderCount * speed;
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);
   matrix->LoadIdentity();
   matrix->LookAt(factor * normals[currPos / 3].x + originalPos[currPos], factor * normals[currPos / 3].y + originalPos[currPos + 1], factor * normals[currPos / 3].z + originalPos[currPos + 2],
@@ -463,18 +474,6 @@ void displayFunc()
   renderSky();
 
   glutSwapBuffers();
-}
-
-void animate()
-{
-  if ((3 * renderCount * speed) + 100 >= (int)originalPos.size())
-  {
-    needAnimate = false;
-  }
-  else
-  {
-    renderCount = renderCount + 1;
-  }
 }
 
 void idleFunc()
@@ -765,7 +764,7 @@ void initTextures()
   code = initTexture("./sky_texture_1024.jpg", skyTextureHandle);
   if (code != 0)
   {
-    printf("Error loading ground texture");
+    printf("Error loading sky texture");
     exit(EXIT_FAILURE);
   }
   // load metal texture
@@ -773,7 +772,7 @@ void initTextures()
   code = initTexture("./metal_texture_1024.jpg", metalTextureHandle);
   if (code != 0)
   {
-    printf("Error loading ground texture");
+    printf("Error loading metal texture");
     exit(EXIT_FAILURE);
   }
 }
